@@ -31,7 +31,7 @@ def create_order(fault_type: str, fault_description: str, device_id: str, order_
             fault_type=fault_type,
             fault_description=fault_description,
             device_id=device_id,
-            order_type=order_type
+            order_type=order_type 
         )
         return ai_control_dispatch(req)
     except Exception as e:
@@ -170,6 +170,7 @@ if __name__ == "__main__":
     print("服务地址: http://0.0.0.0:8001/mcp")
     print("绑定地址: 0.0.0.0 (允许外部访问)")
     print("使用 HTTP 传输启动...")
+    print("无状态模式: 已启用")
     print("=" * 50)
     
-    mcp.run(transport="http", host="0.0.0.0", port=8001)
+    mcp.run(transport="http", host="0.0.0.0", port=8001, stateless_http=True)

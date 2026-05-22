@@ -130,21 +130,47 @@ def calc_distance_km(lat1, lon1, lat2, lon2):
 def select_nearest_engineer(device_brand, device_model, device_lat, device_lon, exclude_ids=None):
     candidates = []
     exclude_ids = exclude_ids or []
+    
+    # 清理输入的品牌和型号，去除首尾空格
+    device_brand = device_brand.strip() if device_brand else ""
+    device_model = device_model.strip() if device_model else ""
+
+    print(f"\n=== 派单调试 ===")
+    print(f"设备信息: 品牌={device_brand}, 型号={device_model}, 位置=({device_lat}, {device_lon})")
+    print(f"维修工总数: {len(engineers_real)}")
 
     for engineer_id, engineer in engineers_real.items():
+        print(f"\n检查维修工: {engineer_id} - {engineer.get('维修工姓名')}")
+        
         if engineer_id in exclude_ids:
+            print(f"  → 跳过: 在排除列表中")
             continue
 
         if engineer["工作状态"] != "空闲":
+            print(f"  → 跳过: 状态为 {engineer['工作状态']}")
             continue
 
         if engineer["latitude"] is None or engineer["longitude"] is None:
+            print(f"  → 跳过: 缺少位置信息")
+            continue
+        
+        # 清理维修工技能字段，去除首尾空格
+        eng_brand = engineer["技能品牌"].strip() if engineer["技能品牌"] else ""
+        eng_model = engineer["技能型号"].strip() if engineer["技能型号"] else ""
+
+        # 使用更宽松的匹配：支持包含匹配或相等匹配
+        brand_match = (device_brand in eng_brand) or (eng_brand in device_brand) or (device_brand == eng_brand)
+        model_match = (device_model in eng_model) or (eng_model in device_model) or (device_model == eng_model)
+        
+        print(f"  技能品牌: '{eng_brand}', 技能型号: '{eng_model}'")
+        print(f"  品牌匹配: {brand_match}, 型号匹配: {model_match}")
+        
+        if not brand_match:
+            print(f"  → 跳过: 品牌不匹配")
             continue
 
-        if device_brand not in engineer["技能品牌"]:
-            continue
-
-        if device_model not in engineer["技能型号"]:
+        if not model_match:
+            print(f"  → 跳过: 型号不匹配")
             continue
 
         distance = calc_distance_km(
@@ -153,6 +179,7 @@ def select_nearest_engineer(device_brand, device_model, device_lat, device_lon, 
             engineer["latitude"],
             engineer["longitude"]
         )
+        print(f"  ✓ 匹配成功! 距离: {distance:.2f}公里")
 
         candidates.append({
             "engineer_id": engineer_id,
@@ -160,11 +187,15 @@ def select_nearest_engineer(device_brand, device_model, device_lat, device_lon, 
             "distance_km": distance
         })
 
+    print(f"\n候选维修工数量: {len(candidates)}")
     if not candidates:
+        print("  → 没有找到匹配的维修工")
         return None
 
     candidates.sort(key=lambda x: x["distance_km"])
-    return candidates[0]
+    selected = candidates[0]
+    print(f"  → 选择最近的维修工: {selected['engineer_id']} - {selected['engineer']['维修工姓名']}, 距离: {selected['distance_km']:.2f}公里")
+    return selected
 
 def sync_user_legacy_fields(user_table):
     """兼容旧版扁平字段"""
@@ -294,12 +325,82 @@ def upsert_device(device_id, brand, model, device_type, user_name, address, phon
 
 def list_user_orders(user_phone):
     result = []
+    # 优先从内存读取，提高性能
+    memory_found = False
     for order in work_orders.values():
         internal = order.get("内部维修工单表", {})
         if internal.get("联系电话") == user_phone:
             user_table = order["用户端维修工单表"]
             sync_user_legacy_fields(user_table)
             result.append(user_table)
+            memory_found = True
+    
+    # 如果内存中找到数据，同时也从数据库补充最新数据
+    # 确保MCP创建的工单能实时显示
+    try:
+        with get_db() as conn:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+            cursor.execute("""
+                SELECT * FROM work_orders WHERE user_phone = %s ORDER BY work_order_id DESC
+            """, (user_phone,))
+            rows = cursor.fetchall()
+            
+            # 用数据库数据更新/补充内存数据
+            for row in rows:
+                order_id = row["work_order_id"]
+                # 如果内存中已有，跳过；否则从数据库添加
+                if memory_found:
+                    exists_in_memory = False
+                    for existing in result:
+                        if existing.get("工单ID") == order_id:
+                            exists_in_memory = True
+                            break
+                    if exists_in_memory:
+                        continue
+                
+                user_table = {
+                    "工单ID": row["work_order_id"],
+                    "工单类型": row.get("order_type", "报修"),
+                    "用户信息": {
+                        "用户姓名": row["user_name"],
+                        "联系电话": row["user_phone"],
+                        "地址": row["address"]
+                    },
+                    "设备信息": {
+                        "设备ID": row["device_id"],
+                        "设备品牌": row["device_brand"],
+                        "设备型号": row["device_model"],
+                        "设备类型": "电梯"
+                    },
+                    "故障类型": row["fault_type"],
+                    "工单状态": row["order_status"],
+                    "维修人员信息": {
+                        "维修工姓名": row.get("engineer_name", "暂未分配"),
+                        "维修工电话": row.get("engineer_phone", "暂未分配"),
+                        "预计到达时间": row.get("eta", "客服确认后通知"),
+                        "距离": row.get("distance", "暂无")
+                    },
+                    "完成时间": row.get("completion_time"),
+                    "用户通知": row.get("user_notice", ""),
+                    "下单时间": row.get("create_time", row.get("alarm_time", "")),
+                    "最后操作时间": row.get("last_operation_time", ""),
+                    "当前状态": row["order_status"],
+                    "用户姓名": row["user_name"],
+                    "用户电话": row["user_phone"],
+                    "用户地址": row["address"],
+                    "维修工姓名": row.get("engineer_name", "暂未分配"),
+                    "维修工电话": row.get("engineer_phone", "暂未分配"),
+                    "预计到达时间": row.get("eta", "客服确认后通知"),
+                    "距离": row.get("distance", "暂无"),
+                    "设备ID": row["device_id"],
+                    "设备品牌": row["device_brand"],
+                    "设备型号": row["device_model"]
+                }
+                result.append(user_table)
+    except Exception as e:
+        print(f"从数据库同步工单失败: {e}")
+        pass
+    
     result.sort(key=lambda x: x["工单ID"], reverse=True)
     return result
 
@@ -318,10 +419,62 @@ def user_order_stats(user_phone):
 
 def list_engineer_orders(engineer_id):
     result = []
+    # 优先从内存读取，提高性能
+    memory_found = False
     for order in work_orders.values():
         task = order.get("维修工窗口", {})
         if task.get("维修工ID") == engineer_id:
             result.append(task)
+            memory_found = True
+    
+    # 如果内存中找到数据，同时也从数据库补充最新数据
+    # 确保MCP创建的工单能实时显示
+    try:
+        with get_db() as conn:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+            cursor.execute("""
+                SELECT * FROM work_orders WHERE engineer_id = %s ORDER BY work_order_id DESC
+            """, (engineer_id,))
+            rows = cursor.fetchall()
+            
+            # 用数据库数据更新/补充内存数据
+            for row in rows:
+                order_id = row["work_order_id"]
+                # 如果内存中已有，跳过；否则从数据库添加
+                if memory_found:
+                    exists_in_memory = False
+                    for existing in result:
+                        if existing.get("工单ID") == order_id:
+                            exists_in_memory = True
+                            break
+                    if exists_in_memory:
+                        continue
+                
+                task = {
+                    "工单ID": row["work_order_id"],
+                    "维修工ID": row.get("engineer_id", "未分配"),
+                    "维修工姓名": row.get("engineer_name", "暂未分配"),
+                    "联系电话": row.get("engineer_phone", "暂未分配"),
+                    "任务状态": row["order_status"],
+                    "工单类型": row.get("order_type", "报修"),
+                    "故障类型": row["fault_type"],
+                    "紧急程度": row["emergency_level"],
+                    "设备ID": row["device_id"],
+                    "设备品牌": row["device_brand"],
+                    "设备型号": row["device_model"],
+                    "设备地址": row["address"],
+                    "用户电话": row["user_phone"],
+                    "距离": row.get("distance", "暂无"),
+                    "预计到达时间": row.get("eta", "客服确认后通知"),
+                    "维修工通知": row.get("engineer_notice", ""),
+                    "下单时间": row.get("create_time", row.get("alarm_time", "")),
+                    "最后操作时间": row.get("last_operation_time", "")
+                }
+                result.append(task)
+    except Exception as e:
+        print(f"从数据库同步维修工工单失败: {e}")
+        pass
+    
     result.sort(key=lambda x: x["工单ID"], reverse=True)
     return result
 
@@ -523,18 +676,28 @@ def alarm(req: AlarmRequest):
     # 使用请求中的故障类型，如果没有则使用AI分析结果
     fault_type = req.fault_type if req.fault_type else ai_result.get("故障类型", "未知")
 
-    upsert_user_profile(user_name, user_phone, user_address)
-    upsert_device(
-        req.device_id,
-        device_brand,
-        device_model,
-        req.device_type,
-        user_name,
-        user_address,
-        user_phone,
-        "报警中" if order_type == "报警" else "待维护",
-    )
+    # 创建工单时不更新用户个人地址和设备绑定地址
+    # 用户地址应在用户主动编辑个人资料时更新
+    # 设备信息仅在设备不存在时创建，不更新现有设备的绑定地址
+    if req.device_id not in devices_registry:
+        upsert_device(
+            req.device_id,
+            device_brand,
+            device_model,
+            req.device_type,
+            user_name,
+            user_address,
+            user_phone,
+            "报警中" if order_type == "报警" else "待维护",
+        )
 
+    # 检查维修工数据是否已加载，如果没有则从数据库重新加载
+    if not engineers_real:
+        print("\n=== 警告 ===")
+        print("engineers_real 为空！尝试从数据库重新加载维修工数据...")
+        load_engineers_from_db()
+        print(f"重新加载完成，维修工数量: {len(engineers_real)}")
+    
     nearest = select_nearest_engineer(
         device_brand,
         device_model,
@@ -702,6 +865,10 @@ def ai_control_dispatch(req: AIDispatchRequest):
     if not req.device_id:
         return {"status": "error", "message": "请提供设备ID"}
     
+    # 确保用户数据已加载
+    if not user_profiles:
+        load_users_from_db()
+    
     # 根据设备ID获取设备信息
     device_info = devices_registry.get(req.device_id, {})
     
@@ -709,9 +876,24 @@ def ai_control_dispatch(req: AIDispatchRequest):
     device_type = req.device_id.split("-")[0] if "-" in req.device_id else device_info.get("设备类型", "电梯")
     device_brand = device_info.get("设备品牌", "奥的斯")
     device_model = device_info.get("设备型号", "GEN2")
-    user_name = device_info.get("所属用户姓名", "系统用户")
-    user_phone = device_info.get("联系电话", DEFAULT_USER_PHONE)
-    user_address = device_info.get("绑定地址", "系统地址")
+    
+    # 优先从设备注册表获取用户信息
+    user_name = device_info.get("所属用户姓名", "")
+    user_phone = device_info.get("联系电话", "")
+    user_address = device_info.get("绑定地址", "")
+    
+    # 如果设备注册表中没有用户信息或为默认值，从用户表中获取真实用户信息
+    if not user_name or user_name == "系统用户":
+        # 尝试从用户表获取默认用户信息
+        default_user = user_profiles.get(DEFAULT_USER_PHONE)
+        if default_user:
+            user_name = default_user.get("用户姓名", "系统用户")
+            user_address = default_user.get("地址", "系统地址")
+            if not user_phone:
+                user_phone = DEFAULT_USER_PHONE
+    
+    if not user_phone:
+        user_phone = DEFAULT_USER_PHONE
     
     # 调用报警接口创建真实工单
     alarm_req = AlarmRequest(
@@ -919,10 +1101,111 @@ def ai_control_orders(
 
 @app.get("/api/admin/orders")
 def admin_orders():
-    return {
-        "status": "success",
-        "data": work_orders
-    }
+    # 合并内存和数据库中的工单，确保MCP创建的工单能实时显示
+    result = {}
+    
+    # 先从内存读取
+    for order_id, order in work_orders.items():
+        result[order_id] = order
+    
+    # 再从数据库补充最新数据
+    try:
+        with get_db() as conn:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+            cursor.execute("SELECT * FROM work_orders ORDER BY work_order_id DESC")
+            rows = cursor.fetchall()
+            for row in rows:
+                order_id = row["work_order_id"]
+                # 如果内存中已有，跳过；否则从数据库添加
+                if order_id in result:
+                    continue
+                
+                order_data = {
+                    "内部维修工单表": {
+                        "工单ID": row["work_order_id"],
+                        "报修/报警时间": row["alarm_time"],
+                        "用户姓名": row["user_name"],
+                        "联系电话": row["user_phone"],
+                        "地址": row["address"],
+                        "设备ID": row["device_id"],
+                        "设备品牌": row["device_brand"],
+                        "设备型号": row["device_model"],
+                        "故障类型": row["fault_type"],
+                        "紧急程度": row["emergency_level"],
+                        "工单类型": row.get("order_type", "报修"),
+                        "工单状态": row["order_status"],
+                        "备注": row["remark"],
+                        "下单时间": row.get("create_time", ""),
+                        "最后操作时间": row.get("last_operation_time", ""),
+                    },
+                    "用户端维修工单表": {
+                        "工单ID": row["work_order_id"],
+                        "工单类型": row.get("order_type", "报修"),
+                        "用户信息": {
+                            "用户姓名": row["user_name"],
+                            "联系电话": row["user_phone"],
+                            "地址": row["address"]
+                        },
+                        "设备信息": {
+                            "设备ID": row["device_id"],
+                            "设备品牌": row["device_brand"],
+                            "设备型号": row["device_model"],
+                            "设备类型": "电梯"
+                        },
+                        "故障类型": row["fault_type"],
+                        "工单状态": row["order_status"],
+                        "维修人员信息": {
+                            "维修工姓名": row.get("engineer_name", "暂未分配"),
+                            "维修工电话": row.get("engineer_phone", "暂未分配"),
+                            "预计到达时间": row.get("eta", "客服确认后通知"),
+                            "距离": row.get("distance", "暂无")
+                        },
+                        "完成时间": row.get("completion_time"),
+                        "用户通知": row.get("user_notice", ""),
+                        "下单时间": row.get("create_time", row.get("alarm_time", "")),
+                        "最后操作时间": row.get("last_operation_time", ""),
+                    },
+                    "维修工窗口": {
+                        "工单ID": row["work_order_id"],
+                        "维修工ID": row.get("engineer_id", "未分配"),
+                        "维修工姓名": row.get("engineer_name", "暂未分配"),
+                        "联系电话": row.get("engineer_phone", "暂未分配"),
+                        "任务状态": row["order_status"],
+                        "工单类型": row.get("order_type", "报修"),
+                        "故障类型": row["fault_type"],
+                        "紧急程度": row["emergency_level"],
+                        "设备ID": row["device_id"],
+                        "设备品牌": row["device_brand"],
+                        "设备型号": row["device_model"],
+                        "设备地址": row["address"],
+                        "用户电话": row["user_phone"],
+                        "距离": row.get("distance", "暂无"),
+                        "预计到达时间": row.get("eta", "客服确认后通知"),
+                        "维修工通知": row.get("engineer_notice", ""),
+                        "下单时间": row.get("create_time", row.get("alarm_time", "")),
+                        "最后操作时间": row.get("last_operation_time", ""),
+                    },
+                    "设备管理表": {
+                        "设备ID": row["device_id"],
+                        "设备品牌": row["device_brand"],
+                        "设备型号": row["device_model"],
+                        "设备类型": "电梯",
+                        "设备状态": "报警中" if row.get("order_type") == "报警" else "待维护",
+                        "所属用户姓名": row["user_name"],
+                        "绑定地址": row["address"],
+                        "联系电话": row["user_phone"],
+                    }
+                }
+                result[order_id] = order_data
+            return {
+                "status": "success",
+                "data": result
+            }
+    except Exception:
+        return {
+            "status": "success",
+            "data": work_orders
+        }
 
 @app.post("/api/admin/assign-order")
 def assign_order(req: dict):
@@ -1299,9 +1582,82 @@ def app_user_orders(phone: str = DEFAULT_USER_PHONE):
 
 @app.get("/api/app/user/order/{work_order_id}")
 def app_user_order_detail(work_order_id: str):
+    # 优先从内存获取
     order = work_orders.get(work_order_id)
+    
+    # 如果内存中没有，从数据库获取
     if not order:
-        return {"status": "error", "message": "工单不存在"}
+        try:
+            with get_db() as conn:
+                cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+                cursor.execute("SELECT * FROM work_orders WHERE work_order_id = %s", (work_order_id,))
+                row = cursor.fetchone()
+                
+                if not row:
+                    return {"status": "error", "message": "工单不存在"}
+                
+                # 构建工单数据结构
+                user_table = {
+                    "工单ID": row["work_order_id"],
+                    "工单类型": row.get("order_type", "报修"),
+                    "用户信息": {
+                        "用户姓名": row["user_name"],
+                        "联系电话": row["user_phone"],
+                        "地址": row["address"]
+                    },
+                    "设备信息": {
+                        "设备ID": row["device_id"],
+                        "设备品牌": row["device_brand"],
+                        "设备型号": row["device_model"],
+                        "设备类型": "电梯"
+                    },
+                    "故障类型": row["fault_type"],
+                    "工单状态": row["order_status"],
+                    "维修人员信息": {
+                        "维修工姓名": row.get("engineer_name", "暂未分配"),
+                        "维修工电话": row.get("engineer_phone", "暂未分配"),
+                        "预计到达时间": row.get("eta", "客服确认后通知"),
+                        "距离": row.get("distance", "暂无")
+                    },
+                    "完成时间": row.get("completion_time"),
+                    "用户通知": row.get("user_notice", ""),
+                    "下单时间": row.get("create_time", row.get("alarm_time", "")),
+                    "最后操作时间": row.get("last_operation_time", ""),
+                    "当前状态": row["order_status"],
+                    "用户姓名": row["user_name"],
+                    "用户电话": row["user_phone"],
+                    "用户地址": row["address"],
+                    "维修工姓名": row.get("engineer_name", "暂未分配"),
+                    "维修工电话": row.get("engineer_phone", "暂未分配"),
+                    "预计到达时间": row.get("eta", "客服确认后通知"),
+                    "距离": row.get("distance", "暂无"),
+                    "设备ID": row["device_id"],
+                    "设备品牌": row["device_brand"],
+                    "设备型号": row["device_model"]
+                }
+                
+                sync_user_legacy_fields(user_table)
+                
+                return {
+                    "status": "success",
+                    "data": {
+                        "用户端维修工单表": user_table,
+                        "设备管理表": {
+                            "设备ID": row["device_id"],
+                            "设备品牌": row["device_brand"],
+                            "设备型号": row["device_model"],
+                            "设备类型": "电梯",
+                            "设备状态": "报警中" if row.get("order_type") == "报警" else "待维护",
+                            "所属用户姓名": row["user_name"],
+                            "绑定地址": row["address"],
+                            "联系电话": row["user_phone"],
+                        },
+                    },
+                }
+        except Exception as e:
+            print(f"从数据库获取工单详情失败: {e}")
+            return {"status": "error", "message": "工单不存在"}
+    
     user_table = order["用户端维修工单表"]
     sync_user_legacy_fields(user_table)
     return {
@@ -1314,9 +1670,47 @@ def app_user_order_detail(work_order_id: str):
 
 @app.get("/api/engineer/{work_order_id}")
 def engineer_order(work_order_id: str):
+    # 优先从内存获取
     order = work_orders.get(work_order_id)
+    
+    # 如果内存中没有，从数据库获取
     if not order:
-        return {"status": "error", "message": "工单不存在"}
+        try:
+            with get_db() as conn:
+                cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+                cursor.execute("SELECT * FROM work_orders WHERE work_order_id = %s", (work_order_id,))
+                row = cursor.fetchone()
+                
+                if not row:
+                    return {"status": "error", "message": "工单不存在"}
+                
+                # 构建维修工窗口数据
+                task = {
+                    "工单ID": row["work_order_id"],
+                    "维修工ID": row.get("engineer_id", "未分配"),
+                    "维修工姓名": row.get("engineer_name", "暂未分配"),
+                    "联系电话": row.get("engineer_phone", "暂未分配"),
+                    "任务状态": row["order_status"],
+                    "工单类型": row.get("order_type", "报修"),
+                    "故障类型": row["fault_type"],
+                    "紧急程度": row["emergency_level"],
+                    "设备ID": row["device_id"],
+                    "设备品牌": row["device_brand"],
+                    "设备型号": row["device_model"],
+                    "设备地址": row["address"],
+                    "用户电话": row["user_phone"],
+                    "距离": row.get("distance", "暂无"),
+                    "预计到达时间": row.get("eta", "客服确认后通知"),
+                    "维修工通知": row.get("engineer_notice", ""),
+                    "下单时间": row.get("create_time", row.get("alarm_time", "")),
+                    "最后操作时间": row.get("last_operation_time", "")
+                }
+                
+                return {"status": "success", "data": task}
+        except Exception as e:
+            print(f"从数据库获取维修工工单详情失败: {e}")
+            return {"status": "error", "message": "工单不存在"}
+    
     return {"status": "success", "data": order["维修工窗口"]}
 
 @app.get("/health")
