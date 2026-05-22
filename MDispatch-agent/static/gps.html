@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>维修工GPS上传</title>
+</head>
+<body>
+<h2>维修工GPS实时上传</h2>
+
+<button onclick="startUpload()">开始上传GPS</button>
+<p id="status">等待上传...</p>
+
+<script>
+function startUpload() {
+    document.getElementById("status").innerText = "正在请求定位权限...";
+
+    setInterval(() => {
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+
+            document.getElementById("status").innerText =
+                "已上传坐标：" + lat + ", " + lon;
+
+            await fetch("/api/engineer/location", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    engineer_id: "ENG001",
+                    latitude: lat,
+                    longitude: lon
+                })
+            });
+        }, (err) => {
+            document.getElementById("status").innerText =
+                "GPS获取失败：" + err.message;
+        });
+    }, 5000);
+}
+</script>
+</body>
+</html>

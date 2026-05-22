@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>智慧电梯 · 用户端</title>
+<link rel="stylesheet" href="/static/css/mobile-app.css">
+</head>
+<body>
+
+<header class="app-header">
+    <h1>智慧电梯用户端</h1>
+    <p>工单服务 · 我的设备</p>
+    <div id="headerUser" style="position:absolute;right:16px;top:12px;">
+        <button class="btn btn-xs btn-outline" onclick="showLoginModal()" id="loginBtn">登录/注册</button>
+        <div id="userInfo" style="display:none;">
+            <span id="userName" style="font-size:14px;color:#374151;">用户</span>
+            <button class="btn btn-xs btn-outline" onclick="logout()">退出</button>
+        </div>
+    </div>
+</header>
+
+<!-- 未登录提示条 -->
+<div id="guestBanner" style="background:#fef3c7;color:#d97706;padding:8px 16px;text-align:center;font-size:13px;display:none;">
+    当前为访客模式，查看的是演示数据。<a href="#" onclick="showLoginModal();return false;" style="color:#d97706;font-weight:bold;">登录</a>后查看您的专属工单。
+</div>
+
+<section id="pageOrders" class="page active">
+    <div class="filter-bar" id="filterBar">
+        <button class="chip active" data-filter="全部">全部</button>
+        <button class="chip" data-filter="待接单">待接单</button>
+        <button class="chip" data-filter="已接单">已接单</button>
+        <button class="chip" data-filter="已完成">已完成</button>
+        <button class="chip" data-filter="已取消">已取消</button>
+    </div>
+
+    <div class="card">
+        <div class="card-title">
+            工单管理
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+            <button class="btn btn-sm btn-primary" style="flex:1;" onclick="handleCreateOrder()">新建报修</button>
+            <button class="btn btn-sm btn-outline" style="flex:1;" onclick="handleBookOrder()">预约维修</button>
+        </div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:8px;margin-top:12px;">查看工单列表，点击条目查看详情</p>
+    </div>
+
+    <div id="orderList"></div>
+</section>
+
+<section id="pageMine" class="page">
+    <div class="card">
+        <div class="card-title">工单状态概览</div>
+        <div class="stats-grid" id="orderStats"></div>
+    </div>
+
+    <div class="card profile-card" id="profileCard">
+        <div class="card-title">
+            基础信息
+            <button type="button" class="btn btn-sm btn-outline btn-edit-trigger" onclick="startProfileEdit()" id="editProfileBtn" style="display:none;">修改</button>
+        </div>
+        <div id="profileView" class="profile-view-panel"></div>
+        <div id="profileNotLoggedIn" style="display:none;padding:24px;text-align:center;">
+            <div style="font-size:48px;margin-bottom:12px;">👤</div>
+            <div style="color:#64748b;margin-bottom:16px;">请先登录以查看个人信息</div>
+            <button class="btn btn-primary" onclick="showLoginModal()">立即登录</button>
+        </div>
+        <div id="profileEdit" class="profile-edit-panel">
+        <label class="form-label">用户姓名</label>
+        <input id="profileName" placeholder="请输入姓名">
+        <label class="form-label">联系电话</label>
+        <input id="profilePhone" type="tel" placeholder="用于关联工单">
+        <div class="address-block">
+            <label class="form-label">联系地址</label>
+            <div class="form-row-2">
+                <select id="profileProvince"></select>
+                <select id="profileCity"></select>
+            </div>
+            <label class="form-label">详细地址</label>
+            <input id="profileAddressDetail" placeholder="街道、小区、楼栋、门牌号等">
+        </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-outline" onclick="cancelProfileEdit()">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveProfile()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">绑定设备</div>
+        <div id="deviceInfo"></div>
+    </div>
+</section>
+
+<nav class="bottom-nav">
+    <button class="nav-item active" data-tab="orders" onclick="switchTab('orders')">
+        <span class="icon">📋</span><span>工单</span>
+    </button>
+    <button class="nav-item" data-tab="mine" onclick="switchTab('mine')">
+        <span class="icon">👤</span><span>我的</span>
+    </button>
+</nav>
+
+<!-- 登录/注册模态框 -->
+<div class="modal-mask" id="loginModal" onclick="closeLoginIfMask(event)">
+    <div class="modal-sheet" onclick="event.stopPropagation()" style="max-width:320px;">
+        <span class="modal-close" onclick="closeLogin()">&times;</span>
+        <h3 id="loginModalTitle">用户登录</h3>
+        
+        <div id="loginForm">
+            <label class="form-label">手机号码</label>
+            <input id="loginPhone" type="tel" placeholder="请输入手机号">
+            
+            <label class="form-label">密码</label>
+            <input id="loginPassword" type="password" placeholder="请输入密码">
+            
+            <button class="btn btn-primary" onclick="doLogin()" style="margin-top:8px;">登录</button>
+            
+            <p style="text-align:center;margin-top:12px;font-size:13px;">
+                还没有账号？<a href="#" onclick="switchToRegister();return false;">立即注册</a>
+            </p>
+        </div>
+        
+        <div id="registerForm" style="display:none;">
+            <label class="form-label">用户姓名</label>
+            <input id="regName" placeholder="请输入姓名">
+            
+            <label class="form-label">手机号码</label>
+            <input id="regPhone" type="tel" placeholder="请输入手机号">
+            
+            <label class="form-label">密码</label>
+            <input id="regPassword" type="password" placeholder="请输入密码">
+            
+            <label class="form-label">确认密码</label>
+            <input id="regPassword2" type="password" placeholder="请再次输入密码">
+            
+            <button class="btn btn-primary" onclick="doRegister()" style="margin-top:8px;">注册</button>
+            
+            <p style="text-align:center;margin-top:12px;font-size:13px;">
+                已有账号？<a href="#" onclick="switchToLogin();return false;">立即登录</a>
+            </p>
+        </div>
+    </div>
+</div>
+
+<div class="modal-mask" id="detailModal" onclick="closeDetailIfMask(event)">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
+        <span class="modal-close" onclick="closeDetail()">&times;</span>
+        <h3>工单信息</h3>
+        <div id="detailBody"></div>
+    </div>
+</div>
+
+<div class="modal-mask" id="createModal" onclick="closeCreateIfMask(event)">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
+        <span class="modal-close" onclick="closeCreate()">&times;</span>
+        <h3>新建工单</h3>
+        <label class="form-label">工单类型</label>
+        <select id="fOrderType">
+            <option value="报警">🚨 报警（紧急）</option>
+            <option value="报修">🔧 报修（普通）</option>
+        </select>
+        <label class="form-label">故障类型</label>
+        <select id="fFaultType">
+            <option value="困人">困人</option>
+            <option value="机器失灵">机器失灵</option>
+            <option value="异响">异响</option>
+            <option value="门故障">门故障</option>
+            <option value="停运">停运</option>
+            <option value="定期保养">定期保养</option>
+            <option value="其他">其他</option>
+        </select>
+        <label class="form-label">姓名</label>
+        <input id="fName" placeholder="请输入姓名">
+        <label class="form-label">联系电话</label>
+        <input id="fPhone" type="tel" placeholder="请输入联系电话">
+        <div class="address-block">
+            <label class="form-label">报修地址</label>
+            <div class="form-row-2">
+                <select id="fProvince"></select>
+                <select id="fCity"></select>
+            </div>
+            <label class="form-label">详细地址</label>
+            <input id="fAddressDetail" placeholder="街道、小区、楼栋、门牌号等">
+        </div>
+        <label class="form-label">设备类型</label>
+        <select id="fType">
+            <option value="电梯">电梯</option>
+            <option value="机器人">机器人</option>
+            <option value="空调">空调</option>
+        </select>
+        <label class="form-label">设备品牌</label>
+        <select id="fBrand">
+            <option value="奥的斯">奥的斯</option>
+            <option value="三菱">三菱</option>
+            <option value="通力">通力</option>
+        </select>
+        <label class="form-label">设备型号</label>
+        <select id="fModel">
+            <option value="GEN2">GEN2</option>
+            <option value="LEHY-III">LEHY-III</option>
+        </select>
+        <label class="form-label">设备 ID</label>
+        <input id="fDeviceId" placeholder="设备ID" value="DEV2025001">
+        <label class="form-label">故障描述</label>
+        <textarea id="fFault" placeholder="如：电梯困人，请尽快救援"></textarea>
+        <button class="btn btn-primary" onclick="submitAlarm()">提交工单</button>
+    </div>
+</div>
+
+<!-- 预约维修模态框 -->
+<div class="modal-mask" id="bookModal" onclick="closeBookIfMask(event)">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
+        <span class="modal-close" onclick="closeBook()">&times;</span>
+        <h3>预约维修</h3>
+        <label class="form-label">设备 ID</label>
+        <input id="bDeviceId" placeholder="设备ID">
+        <label class="form-label">故障类型</label>
+        <select id="bFaultType">
+            <option value="电梯困人">电梯困人</option>
+            <option value="电梯故障">电梯故障</option>
+            <option value="设备维护">设备维护</option>
+            <option value="定期保养">定期保养</option>
+            <option value="其他">其他</option>
+        </select>
+        <label class="form-label">选择预约时间</label>
+        <div id="timeSlotsContainer" style="max-height:200px;overflow-y:auto;"></div>
+        <label class="form-label">备注（选填）</label>
+        <textarea id="bRemark" placeholder="请输入其他说明"></textarea>
+        <button class="btn btn-primary" onclick="submitBooking()">确认预约</button>
+    </div>
+</div>
+
+
+
+<!-- 实时追踪模态框 -->
+<div class="modal-mask" id="trackModal" onclick="closeTrackIfMask(event)">
+    <div class="modal-sheet" onclick="event.stopPropagation()" style="max-width:400px;">
+        <span class="modal-close" onclick="closeTrack()">&times;</span>
+        <h3>实时追踪</h3>
+        <div id="trackMap" style="height:200px;background:#f0f4f8;border-radius:12px;margin:12px 0;display:flex;align-items:center;justify-content:center;">
+            <div style="text-align:center;color:#64748b;">
+                <div style="font-size:32px;margin-bottom:8px;">📍</div>
+                <div>正在获取位置...</div>
+            </div>
+        </div>
+        <div id="trackInfo" style="padding:12px;background:#f8fafc;border-radius:8px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                <span style="color:#64748b;">维修工</span>
+                <span id="trackEngineer" style="font-weight:600;">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                <span style="color:#64748b;">当前距离</span>
+                <span id="trackDistance" style="font-weight:600;">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;">
+                <span style="color:#64748b;">预计到达</span>
+                <span id="trackEta" style="font-weight:600;">—</span>
+            </div>
+        </div>
+        <div style="margin-top:12px;color:#64748b;font-size:12px;text-align:center;">
+            位置每5秒自动更新
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/static/js/china-regions.js"></script>
+<script>
+const STORAGE_KEY = "mdispatch_user_phone";
+const STORAGE_KEY_TOKEN = "mdispatch_user_token";
+let currentPhone = localStorage.getItem(STORAGE_KEY) || "";
+let currentUserName = "";
+let isLoggedIn = false;
+let profilePhoneBeforeEdit = currentPhone;
+let allOrders = [];
+let currentFilter = "全部";
+let cachedProfile = null;
+let profileEditing = false;
+
+function initRegionPickers() {
+    RegionPicker.bindProvinceCity(
+        document.getElementById("profileProvince"),
+        document.getElementById("profileCity")
+    );
+    RegionPicker.bindProvinceCity(
+        document.getElementById("fProvince"),
+        document.getElementById("fCity")
+    );
+}
+
+function showToast(msg) {
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    setTimeout(() => el.classList.remove("show"), 2200);
+}
+
+function switchTab(tab) {
+    document.getElementById("pageMine").classList.toggle("active", tab === "mine");
+    document.getElementById("pageOrders").classList.toggle("active", tab === "orders");
+    document.querySelectorAll(".nav-item").forEach(n => {
+        n.classList.toggle("active", n.dataset.tab === tab);
+    });
+    if (tab === "orders") loadOrders();
+    if (tab === "mine") {
+        setProfileEditMode(false);
+        loadProfile();
+    }
+}
+
+// ===============================
+// 登录/注册功能
+// ===============================
+
+function showLoginModal() {
+    document.getElementById("loginModal").classList.add("show");
+}
+
+function closeLogin() {
+    document.getElementById("loginModal").classList.remove("show");
+}
+
+function closeLoginIfMask(e) {
+    if (e.target.id === "loginModal") closeLogin();
+}
+
+function switchToRegister() {
+    document.getElementById("loginForm").style.display = "none";
+    document.getElementById("registerForm").style.display = "block";
+    document.getElementById("loginModalTitle").textContent = "用户注册";
+}
+
+function switchToLogin() {
+    document.getElementById("registerForm").style.display = "none";
+    document.getElementById("loginForm").style.display = "block";
+    document.getElementById("loginModalTitle").textContent = "用户登录";
+}
+
+async function doLogin() {
+    const phone = document.getElementById("loginPhone").value.trim();
+    const password = document.getElementById("loginPassword").value.trim();
+    
+    if (!phone || !password) {
+        showToast("请输入手机号和密码");
+        return;
+    }
+    
+    const res = await fetch("/api/user/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, password }),
+    });
+    
+    const json = await res.json();
+    if (json.status !== "success") {
+        showToast(json.message || "登录失败");
+        return;
+    }
+    
+    // 登录成功
+    currentPhone = phone;
+    currentUserName = json.data.name || "";
+    isLoggedIn = true;
+    localStorage.setItem(STORAGE_KEY, phone);
+    localStorage.setItem(STORAGE_KEY_TOKEN, "logged_in");
+    
+    updateLoginUI();
+    closeLogin();
+    showToast("登录成功");
+    
+    // 重新加载数据
+    loadProfile();
+    loadOrders();
+}
+
+async function doRegister() {
+    const name = document.getElementById("regName").value.trim();
+    const phone = document.getElementById("regPhone").value.trim();
+    const password = document.getElementById("regPassword").value.trim();
+    const password2 = document.getElementById("regPassword2").value.trim();
+    
+    if (!name || !phone || !password) {
+        showToast("请填写完整信息");
+        return;
+    }
+    
+    if (password !== password2) {
+        showToast("两次输入的密码不一致");
+        return;
+    }
+    
+    const res = await fetch("/api/user/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, phone, password }),
+    });
+    
+    const json = await res.json();
+    if (json.status !== "success") {
+        showToast(json.message || "注册失败");
+        return;
+    }
+    
+    showToast("注册成功，请登录");
+    switchToLogin();
+}
+
+function logout() {
+    isLoggedIn = false;
+    currentPhone = "";
+    currentUserName = "";
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEY_TOKEN);
+    
+    updateLoginUI();
+    showToast("已退出登录");
+    
+    // 重新加载数据
+    loadProfile();
+    loadOrders();
+}
+
+function updateLoginUI() {
+    const loginBtn = document.getElementById("loginBtn");
+    const userInfo = document.getElementById("userInfo");
+    const guestBanner = document.getElementById("guestBanner");
+    
+    if (isLoggedIn) {
+        loginBtn.style.display = "none";
+        userInfo.style.display = "flex";
+        userInfo.style.alignItems = "center";
+        userInfo.style.gap = "8px";
+        document.getElementById("userName").textContent = currentUserName || "用户";
+        guestBanner.style.display = "none";
+    } else {
+        loginBtn.style.display = "block";
+        userInfo.style.display = "none";
+        guestBanner.style.display = "block";
+    }
+}
+
+function checkLoginStatus() {
+    const token = localStorage.getItem(STORAGE_KEY_TOKEN);
+    const phone = localStorage.getItem(STORAGE_KEY);
+    
+    if (token && phone) {
+        isLoggedIn = true;
+        currentPhone = phone;
+        updateLoginUI();
+    }
+}
+
+function handleCreateOrder() {
+    if (!isLoggedIn) {
+        showToast("请先登录");
+        showLoginModal();
+        return;
+    }
+    openCreateModal();
+}
+
+function handleBookOrder() {
+    if (!isLoggedIn) {
+        showToast("请先登录");
+        showLoginModal();
+        return;
+    }
+    openBookModal();
+}
+
+function statusClass(status) {
+    if (status === "已完成") return "done";
+    if (status === "已接单") return "accepted";
+    if (status === "已取消") return "cancelled";
+    if (status === "待预约") return "pending";
+    return "pending";
+}
+
+function mapUserOrderStatus(status) {
+    if (status === "待接单" || status === "待人工派单" || status === "正在转派" || status === "待处理") {
+        return "待接单";
+    }
+    if (status === "待预约") {
+        return "待预约";
+    }
+    if (status === "已完成") {
+        return "已完成";
+    }
+    if (status === "已取消") {
+        return "已取消";
+    }
+    if (status === "处理中") {
+        return "处理中";
+    }
+    return status;
+}
+
+function renderProgressBar(status, eng = {}) {
+    const steps = [
+        { icon: "1", label: "用户报修" },
+        { icon: "2", label: "系统派单" },
+        { icon: "3", label: "维修工接单" },
+        { icon: "4", label: "开始处理" },
+        { icon: "5", label: "维修完成" },
+    ];
+    
+    let currentStep = 0;
+    let fillWidth = "0%";
+    
+    if (status === "已取消") {
+        return '<div class="progress-bar"><div class="progress-title">维修进度</div><div style="text-align:center;color:#6b7280;font-size:13px;padding:8px;">工单已取消</div></div>';
+    }
+    
+    if (status === "待预约") {
+        return '<div class="progress-bar"><div class="progress-title">预约状态</div><div style="text-align:center;color:#64748b;font-size:13px;padding:8px;">已预约，等待指定时间上门</div></div>';
+    }
+    
+    if (status === "待接单" || status === "待人工派单" || status === "正在转派" || status === "待处理") {
+        currentStep = 1;
+        fillWidth = "0%";
+    } else if (status === "已派单") {
+        currentStep = 2;
+        fillWidth = "20%";
+    } else if (status === "已接单") {
+        currentStep = 3;
+        fillWidth = "40%";
+    } else if (status === "处理中") {
+        currentStep = 4;
+        fillWidth = "60%";
+    } else if (status === "已完成") {
+        currentStep = 5;
+        fillWidth = "100%";
+    }
+    
+    let html = '<div class="progress-bar"><div class="progress-title">维修进度</div><div class="progress-steps">';
+    
+    steps.forEach((step, index) => {
+        const stepNum = index + 1;
+        let className = "";
+        if (stepNum < currentStep) {
+            className = "completed";
+        } else if (stepNum === currentStep) {
+            className = "active";
+        }
+        html += `<div class="progress-step ${className}"><div class="icon">${step.icon}</div><div class="label">${step.label}</div></div>`;
+    });
+    
+    html += `<div class="progress-fill" style="width:${fillWidth}"></div></div>`;
+    
+    if ((status === "已接单" || status === "处理中") && eng) {
+        const distance = eng["距离"] || "—";
+        const eta = eng["预计到达时间"] || "—";
+        html += `<div style="margin-top:12px;padding:10px 12px;background:#f8fafc;border-radius:8px;">
+            <div style="display:flex;justify-content:space-between;font-size:12px;">
+                <span style="color:#64748b;">距离</span>
+                <span style="font-weight:600;color:#1e40af;">${distance}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-top:6px;">
+                <span style="color:#64748b;">预计到达</span>
+                <span style="font-weight:600;color:#1e40af;">${eta}</span>
+            </div>
+        </div>`;
+    }
+    
+    html += '</div>';
+    return html;
+}
+
+function renderInfoRows(rows) {
+    return rows.map(([label, value]) =>
+        `<div class="info-row"><span class="label">${label}</span><span class="value">${value || "—"}</span></div>`
+    ).join("");
+}
+
+function formatProfileAddress(profile) {
+    if (profile["省份"] && profile["城市"]) {
+        const detail = profile["详细地址"] || "";
+        return `${profile["省份"]}${profile["城市"]}${detail}`;
+    }
+    return profile["地址"] || "—";
+}
+
+function renderProfileView(profile) {
+    document.getElementById("profileView").innerHTML = renderInfoRows([
+        ["用户姓名", profile["用户姓名"]],
+        ["联系电话", profile["联系电话"]],
+        ["联系地址", formatProfileAddress(profile)],
+    ]);
+}
+
+function setProfileEditMode(editing) {
+    profileEditing = editing;
+    document.getElementById("profileCard").classList.toggle("is-editing", editing);
+}
+
+function startProfileEdit() {
+    if (cachedProfile) fillProfileForm(cachedProfile);
+    setProfileEditMode(true);
+}
+
+function cancelProfileEdit() {
+    if (cachedProfile) {
+        fillProfileForm(cachedProfile);
+        renderProfileView(cachedProfile);
+    }
+    setProfileEditMode(false);
+}
+
+function fillProfileForm(profile) {
+    const parsed = RegionPicker.parseFullAddress(profile["地址"] || "");
+    const province = profile["省份"] || parsed.province;
+    const city = profile["城市"] || parsed.city;
+    const detail = profile["详细地址"] || parsed.detail;
+
+    document.getElementById("profileName").value = profile["用户姓名"] || "";
+    document.getElementById("profilePhone").value = profile["联系电话"] || currentPhone;
+    document.getElementById("profileAddressDetail").value = detail;
+    RegionPicker.setValues(
+        document.getElementById("profileProvince"),
+        document.getElementById("profileCity"),
+        province,
+        city
+    );
+    profilePhoneBeforeEdit = profile["联系电话"] || currentPhone;
+}
+
+function fillCreateFormFromProfile() {
+    const profile = cachedProfile || {};
+    const parsed = RegionPicker.parseFullAddress(profile["地址"] || "");
+    const province = profile["省份"] || parsed.province;
+    const city = profile["城市"] || parsed.city;
+    const detail = profile["详细地址"] || parsed.detail;
+
+    document.getElementById("fName").value = profile["用户姓名"] || "";
+    document.getElementById("fPhone").value = profile["联系电话"] || currentPhone;
+    RegionPicker.setValues(
+        document.getElementById("fProvince"),
+        document.getElementById("fCity"),
+        province,
+        city
+    );
+    document.getElementById("fAddressDetail").value = detail;
+}
+
+async function saveProfile() {
+    const user_name = document.getElementById("profileName").value.trim();
+    const new_phone = document.getElementById("profilePhone").value.trim();
+    const province = document.getElementById("profileProvince").value;
+    const city = document.getElementById("profileCity").value;
+    const address_detail = document.getElementById("profileAddressDetail").value.trim();
+
+    if (!user_name || !new_phone) {
+        alert("请填写姓名和联系电话");
+        return;
+    }
+    if (!province || !city) {
+        alert("请选择省份和城市");
+        return;
+    }
+    if (!address_detail) {
+        alert("请填写详细地址");
+        return;
+    }
+
+    const res = await fetch("/api/app/user/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            phone: profilePhoneBeforeEdit,
+            user_name,
+            new_phone: new_phone !== profilePhoneBeforeEdit ? new_phone : "",
+            province,
+            city,
+            address_detail,
+        }),
+    });
+    const json = await res.json();
+    if (json.status !== "success") {
+        showToast(json.message || "保存失败");
+        return;
+    }
+
+    currentPhone = new_phone;
+    profilePhoneBeforeEdit = new_phone;
+    localStorage.setItem(STORAGE_KEY, new_phone);
+    showToast("基础信息已保存");
+    setProfileEditMode(false);
+    loadProfile();
+}
+
+async function loadProfile() {
+    const profileView = document.getElementById("profileView");
+    const profileNotLoggedIn = document.getElementById("profileNotLoggedIn");
+    const editProfileBtn = document.getElementById("editProfileBtn");
+    
+    if (!isLoggedIn) {
+        profileView.style.display = "none";
+        profileNotLoggedIn.style.display = "block";
+        editProfileBtn.style.display = "none";
+        return;
+    }
+    
+    const res = await fetch(`/api/app/user/profile?phone=${encodeURIComponent(currentPhone)}`);
+    const json = await res.json();
+    if (json.status !== "success") return;
+
+    const profile = json.data["基础信息"];
+    cachedProfile = profile;
+    const devices = json.data["设备列表"] || [];
+    const stats = json.data["工单统计"] || {};
+
+    profileView.style.display = "block";
+    profileNotLoggedIn.style.display = "none";
+    editProfileBtn.style.display = "inline-block";
+    
+    fillProfileForm(profile);
+    renderProfileView(profile);
+    if (!profileEditing) setProfileEditMode(false);
+
+    const dev = devices[0] || {};
+    const deviceHTML = `
+        <div class="device-card">
+            <div class="device-header">
+                <div class="device-icon">🔧</div>
+                <div class="device-title">
+                    <div class="device-name">${dev["设备名称"] || dev["设备ID"] || "未绑定设备"}</div>
+                    <div class="device-id">设备ID: ${dev["设备ID"] || "-"}</div>
+                </div>
+                <div class="device-status ${dev["设备状态"] === "正常" ? "status-normal" : "status-warning"}">
+                    ${dev["设备状态"] || "未知"}
+                </div>
+            </div>
+            <div class="device-details">
+                <div class="detail-row">
+                    <span class="detail-label">品牌</span>
+                    <span class="detail-value">${dev["品牌"] || "-"}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">型号</span>
+                    <span class="detail-value">${dev["型号"] || "-"}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">类型</span>
+                    <span class="detail-value">${dev["设备类型"] || "-"}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">所属用户</span>
+                    <span class="detail-value">${dev["所属用户姓名"] || "-"}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">绑定地址</span>
+                    <span class="detail-value">${dev["绑定地址"] || dev["安装地址"] || "-"}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">联系电话</span>
+                    <span class="detail-value">${dev["联系电话"] || "-"}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">安装时间</span>
+                    <span class="detail-value">${dev["安装时间"] || "-"}</span>
+                </div>
+            </div>
+        </div>
+    `;
+    document.getElementById("deviceInfo").innerHTML = deviceHTML;
+
+    document.getElementById("orderStats").innerHTML = `
+        <div class="stat-item wait"><div class="num">${stats["待接单"] || 0}</div><div class="lbl">待接单</div></div>
+        <div class="stat-item"><div class="num">${stats["已接单"] || 0}</div><div class="lbl">已接单</div></div>
+        <div class="stat-item done"><div class="num">${stats["已完成"] || 0}</div><div class="lbl">已完成</div></div>
+    `;
+}
+
+async function loadOrders() {
+    if (!isLoggedIn) {
+        document.getElementById("orderList").innerHTML = 
+            '<div class="empty" style="padding:40px 20px;">请先登录以查看工单<br><button class="btn btn-primary" style="max-width:200px;margin:16px auto 0" onclick="showLoginModal()">立即登录</button></div>';
+        return;
+    }
+    
+    const res = await fetch(`/api/app/user/orders?phone=${encodeURIComponent(currentPhone)}`);
+    const json = await res.json();
+    if (json.status !== "success") {
+        document.getElementById("orderList").innerHTML = '<div class="empty">加载失败</div>';
+        return;
+    }
+    allOrders = json.data || [];
+    renderOrderList();
+}
+
+function renderOrderList() {
+    let list;
+    if (currentFilter === "全部") {
+        list = allOrders;
+    } else if (currentFilter === "已接单") {
+        // 已接单列表包含「已接单」和「处理中」状态
+        list = allOrders.filter(o => {
+            const status = mapUserOrderStatus(o["工单状态"]);
+            return status === "已接单" || status === "处理中";
+        });
+    } else {
+        list = allOrders.filter(o => mapUserOrderStatus(o["工单状态"]) === currentFilter);
+    }
+
+    if (list.length === 0) {
+        document.getElementById("orderList").innerHTML =
+            '<div class="empty">暂无工单<br><button class="btn btn-primary" style="max-width:200px;margin:16px auto 0" onclick="openCreateModal()">去报修</button></div>';
+        return;
+    }
+
+    document.getElementById("orderList").innerHTML = list.map(o => {
+        const st = mapUserOrderStatus(o["工单状态"] || "待接单");
+        const eng = o["维修人员信息"] || {};
+        return `
+        <div class="order-card" onclick="openDetail('${o["工单ID"]}')">
+            <div class="head">
+                <span class="oid">${o["工单ID"]}</span>
+                <span class="status-tag ${statusClass(st)}">${st}</span>
+            </div>
+            <div class="meta">
+                故障：${o["故障类型"] || "—"}<br>
+                维修工：${eng["维修工姓名"] || "暂未分配"}
+            </div>
+        </div>`;
+    }).join("");
+}
+
+document.getElementById("filterBar").addEventListener("click", e => {
+    const chip = e.target.closest(".chip");
+    if (!chip) return;
+    document.querySelectorAll("#filterBar .chip").forEach(c => c.classList.remove("active"));
+    chip.classList.add("active");
+    currentFilter = chip.dataset.filter;
+    renderOrderList();
+});
+
+async function openDetail(orderId) {
+    const res = await fetch(`/api/app/user/order/${orderId}`);
+    const json = await res.json();
+    if (json.status !== "success") {
+        showToast(json.message || "加载失败");
+        return;
+    }
+
+    const o = json.data["用户端维修工单表"];
+    const dev = json.data["设备管理表"] || {};
+    const info = o["用户信息"] || {};
+    const device = o["设备信息"] || {};
+    const eng = o["维修人员信息"] || {};
+    const status = o["工单状态"];
+
+    const canCancel = status !== "已完成" && status !== "已取消";
+    const canTrack = (status === "已接单" || status === "处理中") && eng["维修工姓名"];
+    
+    const cancelBtn = canCancel ? `
+        <div style="margin-top:16px;">
+            <button class="btn btn-danger" onclick="cancelOrder('${orderId}')">取消工单</button>
+        </div>
+    ` : "";
+    
+    const trackBtn = canTrack ? `
+        <div style="margin-top:16px;">
+            <button class="btn btn-outline" onclick="openTrack('${orderId}')">📍 实时追踪</button>
+        </div>
+    ` : "";
+
+    const orderType = o["工单类型"] || "报修";
+    const isAlarm = orderType === "报警";
+    
+    document.getElementById("detailBody").innerHTML = renderInfoRows([
+        ["工单ID", o["工单ID"]],
+        ["工单类型", isAlarm ? '<span style="color:#dc2626;font-weight:600;">🚨 ' + orderType + '</span>' : '<span style="color:#3b82f6;font-weight:600;">🔧 ' + orderType + '</span>'],
+        ["工单状态", o["工单状态"]],
+        ["下单时间", o["下单时间"] || "—"],
+        ["最后操作时间", o["最后操作时间"] || "—"],
+        ["故障类型", o["故障类型"]],
+        ["用户姓名", info["用户姓名"]],
+        ["联系电话", info["联系电话"]],
+        ["联系地址", info["地址"]],
+        ["设备ID", device["设备ID"]],
+        ["设备品牌", device["设备品牌"]],
+        ["设备型号", device["设备型号"]],
+        ["设备类型", device["设备类型"]],
+        ["设备状态", dev["设备状态"]],
+        ["维修工", eng["维修工姓名"]],
+        ["维修工电话", eng["维修工电话"]],
+        ["完成时间", o["完成时间"] || "—"],
+        ["系统通知", o["用户通知"]],
+    ]) + renderProgressBar(status, eng) + trackBtn + cancelBtn;
+
+    document.getElementById("detailModal").classList.add("show");
+}
+
+async function cancelOrder(orderId) {
+    const reason = prompt("请输入取消原因：");
+    if (!reason) return;
+
+    const res = await fetch("/api/user/order/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ work_order_id: orderId, reason }),
+    });
+
+    const json = await res.json();
+    if (json.status === "success") {
+        showToast("工单已取消");
+        closeDetail();
+        loadOrders();
+    } else {
+        showToast(json.message || "取消失败");
+    }
+}
+
+function closeDetail() {
+    document.getElementById("detailModal").classList.remove("show");
+}
+
+function closeDetailIfMask(e) {
+    if (e.target.id === "detailModal") closeDetail();
+}
+
+function openCreateModal() {
+    fillCreateFormFromProfile();
+    if (!document.getElementById("fName").value.trim()) {
+        loadProfile().then(() => fillCreateFormFromProfile());
+    }
+    document.getElementById("createModal").classList.add("show");
+}
+
+function closeCreate() {
+    document.getElementById("createModal").classList.remove("show");
+}
+
+function closeCreateIfMask(e) {
+    if (e.target.id === "createModal") closeCreate();
+}
+
+async function submitAlarm() {
+    const order_type = document.getElementById("fOrderType").value;
+    const fault_type = document.getElementById("fFaultType").value;
+    const user_name = document.getElementById("fName").value.trim();
+    const user_phone = document.getElementById("fPhone").value.trim();
+    const province = document.getElementById("fProvince").value;
+    const city = document.getElementById("fCity").value;
+    const address_detail = document.getElementById("fAddressDetail").value.trim();
+    const user_address = RegionPicker.buildFullAddress(province, city, address_detail);
+    const device_type = document.getElementById("fType").value;
+    const device_brand = document.getElementById("fBrand").value;
+    const device_model = document.getElementById("fModel").value;
+    const device_id = document.getElementById("fDeviceId").value.trim();
+    const fault = document.getElementById("fFault").value.trim();
+
+    if (!user_name || !user_phone) {
+        alert("请填写姓名和联系电话");
+        return;
+    }
+    if (!province || !city) {
+        alert("请选择省份和城市");
+        return;
+    }
+    if (!address_detail) {
+        alert("请填写详细地址");
+        return;
+    }
+    if (!device_id || !fault) {
+        alert("请填写设备 ID 和故障描述");
+        return;
+    }
+
+    const text =
+        `用户姓名：${user_name}；联系电话：${user_phone}；地址：${user_address}；` +
+        `设备类型：${device_type}；设备品牌：${device_brand}；设备型号：${device_model}；故障类型：${fault_type}；故障描述：${fault}`;
+
+    const res = await fetch("/api/alarm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            text, device_id, user_name, user_phone, user_address,
+            device_brand, device_model, device_type,
+            order_type, fault_type,
+        }),
+    });
+
+    const json = await res.json();
+    if (json.status !== "success") {
+        showToast("提交失败");
+        return;
+    }
+
+    currentPhone = user_phone;
+    profilePhoneBeforeEdit = user_phone;
+    localStorage.setItem(STORAGE_KEY, user_phone);
+    closeCreate();
+    showToast("工单已提交：" + json.data["用户端维修工单表"]["工单ID"]);
+    loadProfile();
+    switchTab("orders");
+}
+
+// ===============================
+// 预约维修功能
+// ===============================
+
+function openBookModal() {
+    document.getElementById("bookModal").classList.add("show");
+    loadTimeSlots();
+}
+
+function closeBook() {
+    document.getElementById("bookModal").classList.remove("show");
+}
+
+function closeBookIfMask(e) {
+    if (e.target === document.getElementById("bookModal")) closeBook();
+}
+
+async function loadTimeSlots() {
+    const deviceId = document.getElementById("bDeviceId").value;
+    const res = await fetch(`/api/user/booking/time-slots?device_id=${encodeURIComponent(deviceId)}`);
+    const json = await res.json();
+    if (json.status !== "success") return;
+    
+    const container = document.getElementById("timeSlotsContainer");
+    container.innerHTML = json.data.map(slot => `
+        <div class="time-slot" onclick="selectTimeSlot('${slot.time}', this)">
+            ${slot.label}
+        </div>
+    `).join("");
+}
+
+let selectedTimeSlot = null;
+
+function selectTimeSlot(time, el) {
+    document.querySelectorAll(".time-slot").forEach(s => s.classList.remove("selected"));
+    el.classList.add("selected");
+    selectedTimeSlot = time;
+}
+
+async function submitBooking() {
+    const deviceId = document.getElementById("bDeviceId").value;
+    const faultType = document.getElementById("bFaultType").value;
+    const remark = document.getElementById("bRemark").value;
+    
+    if (!selectedTimeSlot) {
+        showToast("请选择预约时间");
+        return;
+    }
+    
+    const res = await fetch("/api/user/order/book", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            user_phone: currentPhone,
+            device_id: deviceId,
+            fault_type: faultType,
+            remark,
+            booking_time: selectedTimeSlot,
+        }),
+    });
+    
+    const json = await res.json();
+    if (json.status !== "success") {
+        showToast(json.message || "预约失败");
+        return;
+    }
+    
+    showToast("预约成功！工单ID：" + json.data["工单ID"]);
+    closeBook();
+    loadOrders();
+}
+
+// ===============================
+// 实时追踪功能
+// ===============================
+
+let currentTrackOrderId = null;
+let trackWebSocket = null;
+
+function openTrack(orderId) {
+    currentTrackOrderId = orderId;
+    document.getElementById("trackModal").classList.add("show");
+    connectTrackWebSocket(orderId);
+}
+
+function closeTrack() {
+    document.getElementById("trackModal").classList.remove("show");
+    if (trackWebSocket) {
+        trackWebSocket.close();
+        trackWebSocket = null;
+    }
+}
+
+function closeTrackIfMask(e) {
+    if (e.target === document.getElementById("trackModal")) closeTrack();
+}
+
+function connectTrackWebSocket(orderId) {
+    const protocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+    const url = `${protocol}${window.location.host}/ws/track/${orderId}`;
+    
+    trackWebSocket = new WebSocket(url);
+    
+    trackWebSocket.onopen = function() {
+        document.getElementById("trackMap").innerHTML = `
+            <div style="text-align:center;color:#10b981;">
+                <div style="font-size:32px;margin-bottom:8px;">✅</div>
+                <div>已连接，正在追踪...</div>
+            </div>
+        `;
+    };
+    
+    trackWebSocket.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        if (data.type === "location_update") {
+            updateTrackInfo(data);
+        }
+    };
+    
+    trackWebSocket.onerror = function() {
+        document.getElementById("trackMap").innerHTML = `
+            <div style="text-align:center;color:#ef4444;">
+                <div style="font-size:32px;margin-bottom:8px;">❌</div>
+                <div>连接失败</div>
+            </div>
+        `;
+    };
+    
+    trackWebSocket.onclose = function() {
+        trackWebSocket = null;
+    };
+}
+
+function updateTrackInfo(data) {
+    document.getElementById("trackEngineer").textContent = data.engineer_name || "—";
+    
+    if (data.latitude && data.longitude) {
+        // 使用后端返回的真实距离数据
+        if (data.distance_km !== null && data.distance_km !== undefined) {
+            const distance = data.distance_km.toFixed(2);
+            document.getElementById("trackDistance").textContent = `${distance} 公里`;
+            
+            if (data.eta_minutes !== null && data.eta_minutes !== undefined) {
+                document.getElementById("trackEta").textContent = `${data.eta_minutes} 分钟`;
+            } else {
+                const minutes = Math.max(3, Math.floor(distance * 3));
+                document.getElementById("trackEta").textContent = `${minutes} 分钟`;
+            }
+        } else {
+            // 如果没有距离数据，显示"计算中..."
+            document.getElementById("trackDistance").textContent = "计算中...";
+            document.getElementById("trackEta").textContent = "—";
+        }
+        
+        // 在地图上显示位置（简化版本）
+        document.getElementById("trackMap").innerHTML = `
+            <div style="text-align:center;color:#1e40af;">
+                <div style="font-size:32px;margin-bottom:8px;">📍</div>
+                <div>维修工位置已更新</div>
+                <div style="font-size:12px;margin-top:4px;color:#64748b;">${data.update_time || ""}</div>
+            </div>
+        `;
+        
+        // 更新地图显示
+        document.getElementById("trackMap").innerHTML = `
+            <div style="height:100%;background:linear-gradient(180deg, #dbeafe 0%, #f0f4f8 100%);position:relative;">
+                <div style="position:absolute;top:20%;left:50%;transform:translateX(-50%);text-align:center;">
+                    <div style="width:32px;height:32px;background:#10b981;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;">👤</div>
+                    <div style="font-size:10px;color:#64748b;margin-top:4px;">维修工</div>
+                </div>
+                <div style="position:absolute;bottom:20%;left:50%;transform:translateX(-50%);text-align:center;">
+                    <div style="width:28px;height:28px;background:#ef4444;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;">📍</div>
+                    <div style="font-size:10px;color:#64748b;margin-top:4px;">目的地</div>
+                </div>
+                <svg style="position:absolute;top:32%;left:50%;width:100px;height:80px;transform:translateX(-50%);" viewBox="0 0 100 80">
+                    <path d="M50 10 L50 70" stroke="#2563eb" stroke-width="3" stroke-dasharray="5,5"/>
+                </svg>
+            </div>
+        `;
+    }
+}
+
+window.onload = function () {
+    initRegionPickers();
+    checkLoginStatus();
+    setProfileEditMode(false);
+    loadProfile();
+    loadOrders();
+};
+</script>
+</body>
+</html>

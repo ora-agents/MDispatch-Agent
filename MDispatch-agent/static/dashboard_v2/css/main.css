@@ -1,0 +1,728 @@
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+html,
+body{
+    width:100%;
+    height:100%;
+    overflow-x:hidden;
+
+    font-family:
+        "Microsoft YaHei",
+        Arial;
+
+    background:
+        radial-gradient(
+            circle at center,
+            #0d1b4d,
+            #050816 70%
+        );
+
+    color:#fff;
+}
+
+/* 背景科技感 */
+.bg-overlay{
+
+    position:fixed;
+
+    inset:0;
+
+    background:
+
+        radial-gradient(
+            rgba(0,255,255,.06),
+            transparent 60%
+        ),
+
+        linear-gradient(
+            rgba(255,255,255,.02) 1px,
+            transparent 1px
+        ),
+
+        linear-gradient(
+            90deg,
+            rgba(255,255,255,.02) 1px,
+            transparent 1px
+        );
+
+    background-size:
+        100% 100%,
+        40px 40px,
+        40px 40px;
+
+    pointer-events:none;
+}
+
+/* ================= 顶部 ================= */
+
+.top-header{
+
+    height:70px;
+
+    position:relative;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    border-bottom:
+        2px solid rgba(0,195,255,.4);
+
+    background:
+        linear-gradient(
+            180deg,
+            rgba(7,20,60,.95),
+            rgba(5,10,25,.95)
+        );
+}
+
+.header-title{
+
+    font-size:32px;
+
+    font-weight:bold;
+
+    letter-spacing:4px;
+
+    color:#dff6ff;
+
+    text-shadow:
+        0 0 20px #00d8ff;
+}
+
+.header-time{
+
+    position:absolute;
+
+    right:30px;
+
+    top:50%;
+
+    transform:translateY(-50%);
+
+    color:#c7f7ff;
+
+    font-size:16px;
+}
+
+.header-deco{
+
+    position:absolute;
+
+    width:180px;
+
+    height:3px;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            #00d8ff,
+            transparent
+        );
+
+    top:55px;
+}
+
+.header-deco.left{
+    left:40px;
+}
+
+.header-deco.right{
+    right:40px;
+}
+
+/* ================= 主体 ================= */
+
+.main-layout{
+
+    height:calc(100vh - 70px);
+
+    display:grid;
+
+    grid-template-columns:
+        320px 1fr 320px;
+
+    gap:12px;
+
+    padding:12px;
+
+    overflow:hidden;
+}
+
+/* 左右 */
+.left-column,
+.right-column{
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:12px;
+
+    overflow:hidden;
+}
+
+/* 中间 */
+.center-column{
+
+    position:relative;
+
+    display:flex;
+
+    flex-direction:column;
+
+    align-items:center;
+
+    overflow:hidden;
+}
+
+/* ================= 卡片 ================= */
+
+.screen-card{
+
+    position:relative;
+
+    background:
+        linear-gradient(
+            180deg,
+            rgba(18,30,80,.92),
+            rgba(7,10,25,.95)
+        );
+
+    border:
+        1px solid rgba(0,200,255,.45);
+
+    border-radius:14px;
+
+    padding:14px;
+
+    overflow:hidden;
+
+    box-shadow:
+        0 0 25px rgba(0,180,255,.08);
+
+    flex-shrink:0;
+}
+
+/* 边角 */
+.screen-card::before,
+.screen-card::after{
+
+    content:"";
+
+    position:absolute;
+
+    width:22px;
+    height:22px;
+
+    border-color:#00d8ff;
+
+    border-style:solid;
+}
+
+.screen-card::before{
+
+    left:0;
+    top:0;
+
+    border-width:
+        2px 0 0 2px;
+}
+
+.screen-card::after{
+
+    right:0;
+    bottom:0;
+
+    border-width:
+        0 2px 2px 0;
+}
+
+/* 标题 */
+.screen-title{
+
+    font-size:18px;
+
+    color:#dff6ff;
+
+    margin-bottom:12px;
+
+    text-align:center;
+
+    text-shadow:
+        0 0 12px #00d8ff;
+}
+
+/* ================= 实时统计 ================= */
+
+.stat-card{
+
+    flex-shrink:0;
+}
+
+.stat-grid{
+
+    display:grid;
+
+    grid-template-columns:
+        repeat(2,1fr);
+
+    gap:12px;
+}
+
+.stat-item{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:12px;
+
+    padding:10px;
+
+    border:
+        1px solid rgba(0,200,255,.25);
+
+    border-radius:10px;
+
+    background:
+        rgba(0,0,0,.18);
+}
+
+.stat-icon{
+
+    width:48px;
+    height:48px;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    border-radius:50%;
+
+    background:
+        rgba(0,180,255,.15);
+
+    font-size:22px;
+}
+
+.stat-number{
+
+    font-size:32px;
+
+    font-weight:bold;
+
+    color:#fff;
+}
+
+.stat-label{
+
+    color:#b8dfff;
+
+    font-size:12px;
+
+    margin-top:4px;
+}
+
+/* ================= 生产商 ================= */
+
+.manufacturer-card{
+
+    flex:1;
+
+    min-height:0;
+
+    overflow:hidden;
+}
+
+.data-table{
+
+    width:100%;
+
+    border-collapse:collapse;
+
+    font-size:13px;
+}
+
+.data-table th{
+
+    background:
+        rgba(0,120,255,.45);
+
+    color:#fff;
+
+    padding:10px;
+
+    border:
+        1px solid rgba(255,255,255,.12);
+}
+
+.data-table td{
+
+    padding:10px;
+
+    text-align:center;
+
+    border:
+        1px solid rgba(255,255,255,.08);
+
+    background:
+        rgba(0,50,120,.25);
+}
+
+/* ================= 中间地图 ================= */
+
+.center-total{
+
+    text-align:center;
+
+    margin-top:8px;
+
+    z-index:2;
+
+    flex-shrink:0;
+}
+
+.total-number{
+
+    font-size:64px;
+
+    font-weight:bold;
+
+    color:#fff;
+
+    text-shadow:
+        0 0 30px #00d8ff;
+}
+
+.total-label{
+
+    font-size:20px;
+
+    color:#dff6ff;
+
+    margin-top:6px;
+}
+
+/* 地图 */
+#chinaMap{
+
+    flex:1;
+
+    width:100%;
+
+    min-height:0;
+}
+
+/* ================= 右侧 ================= */
+
+.right-column{
+
+    justify-content:space-between;
+    gap:12px;
+}
+
+.right-column .screen-card{
+    display:flex;
+    flex-direction:column;
+    flex:1;
+    min-height:200px;
+    max-height:400px;
+}
+
+.right-column .screen-card .screen-title{
+    flex-shrink:0;
+}
+
+.right-chart{
+    flex:1;
+    min-height:150px;
+    max-height:350px;
+    width:100%;
+}
+
+/* ================= 通用颜色 ================= */
+
+.blue{
+    color:#38bdf8;
+}
+
+.green{
+    color:#22c55e;
+}
+
+.red{
+    color:#ef4444;
+}
+
+.yellow{
+    color:#facc15;
+}
+
+
+/* ================= 地图中心光圈 ================= */
+
+.center-column::before{
+
+    content:"";
+
+    position:absolute;
+
+    width:300px;
+    height:300px;
+
+    border-radius:50%;
+
+    background:
+        radial-gradient(
+            rgba(0,255,255,.16),
+            transparent 70%
+        );
+
+    top:40%;
+
+    left:50%;
+
+    transform:
+        translate(-50%,-50%);
+
+    pointer-events:none;
+
+    z-index:0;
+}
+
+/* 地图层级 */
+#chinaMap{
+    position:relative;
+    z-index:2;
+}
+
+/* 中间数字 */
+.center-total{
+    position:relative;
+    z-index:3;
+}
+
+
+/* ================= 数字翻牌效果 ================= */
+
+.stat-number,
+.total-number,
+.kpi-value,
+.device-value{
+    font-family: "DIN Alternate", "Arial", sans-serif;
+    letter-spacing:2px;
+    text-shadow:
+        0 0 10px rgba(0,216,255,.9),
+        0 0 22px rgba(0,216,255,.45);
+    animation:numberGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes numberGlow{
+    from{
+        filter:brightness(1);
+    }
+    to{
+        filter:brightness(1.35);
+    }
+}
+
+.province-info{
+    position:absolute;
+    left:50%;
+    bottom:10px;
+    transform:translateX(-50%);
+    padding:8px 18px;
+    border:1px solid rgba(0,216,255,.55);
+    border-radius:20px;
+    background:rgba(0,20,50,.72);
+    color:#dff6ff;
+    font-size:14px;
+    box-shadow:0 0 18px rgba(0,216,255,.25);
+    z-index:5;
+    white-space:nowrap;
+}
+
+.reset-btn{
+    position:absolute;
+    right:12px;
+    bottom:10px;
+    padding:6px 14px;
+    border:1px solid rgba(0,216,255,.55);
+    border-radius:18px;
+    background:rgba(0,20,50,.75);
+    color:#dff6ff;
+    cursor:pointer;
+    z-index:5;
+    font-size:13px;
+}
+
+
+
+/* ================= 数字翻牌 / 发光效果 ================= */
+
+.stat-number,
+.total-number{
+    font-family: "DIN Alternate", "Arial", sans-serif;
+    letter-spacing:3px;
+    color:#ffffff;
+    text-shadow:
+        0 0 12px rgba(0,216,255,.95),
+        0 0 28px rgba(0,216,255,.55);
+    animation:numberPulse 2s ease-in-out infinite alternate;
+}
+
+@keyframes numberPulse{
+    from{
+        filter:brightness(1);
+        transform:scale(1);
+    }
+    to{
+        filter:brightness(1.35);
+        transform:scale(1.03);
+    }
+}
+
+
+/* ================= 修复地图高度 ================= */
+
+.center-column{
+    position:relative;
+    min-height:0;
+}
+
+#chinaMap{
+    width:100%;
+    flex:1;
+    min-height:0;
+    position:relative;
+    z-index:2;
+}
+
+/* ===== 修复中国地图显示 ===== */
+.center-column{
+    position:relative;
+    height:100%;
+    min-height:0;
+}
+
+.map-wrapper{
+    position:relative;
+    width:100%;
+    flex:1;
+    min-height:0;
+    height:100%;
+}
+
+#chinaMap{
+    display:block;
+    width:100%;
+    height:100%;
+    position:absolute;
+    z-index:10;
+}
+
+.radar-scan{
+    position:absolute;
+    width:200px;
+    height:200px;
+    border-radius:50%;
+    background:radial-gradient(circle, rgba(0,255,255,0.15) 0%, transparent 70%);
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    animation:radarScan 3s linear infinite;
+    z-index:5;
+    pointer-events:none;
+}
+
+@keyframes radarScan{
+    0%{ opacity:0.3; transform:translate(-50%,-50%) scale(0.5); }
+    50%{ opacity:0.6; }
+    100%{ opacity:0.3; transform:translate(-50%,-50%) scale(1.5); }
+}
+
+/* ================= 响应式适配 ================= */
+
+@media screen and (max-height: 800px) {
+    .top-header {
+        height: 60px;
+    }
+    .header-title {
+        font-size: 26px;
+    }
+    .header-time {
+        font-size: 14px;
+    }
+    .header-deco {
+        width: 140px;
+        top: 48px;
+    }
+    .main-layout {
+        height: calc(100vh - 60px);
+        gap: 8px;
+        padding: 8px;
+    }
+    .stat-number {
+        font-size: 26px;
+    }
+    .stat-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 18px;
+    }
+    .total-number {
+        font-size: 48px;
+    }
+    .right-chart {
+        max-height: 280px;
+    }
+}
+
+@media screen and (max-height: 700px) {
+    .top-header {
+        height: 50px;
+    }
+    .header-title {
+        font-size: 22px;
+    }
+    .stat-card {
+        padding: 10px;
+    }
+    .stat-grid {
+        gap: 8px;
+    }
+    .stat-item {
+        padding: 8px;
+    }
+    .total-number {
+        font-size: 40px;
+    }
+    .right-chart {
+        max-height: 220px;
+    }
+}
+
+@media screen and (max-width: 1400px) {
+    .main-layout {
+        grid-template-columns: 280px 1fr 280px;
+    }
+}
+
+@media screen and (max-width: 1200px) {
+    .main-layout {
+        grid-template-columns: 250px 1fr 250px;
+    }
+    .stat-number {
+        font-size: 28px;
+    }
+}

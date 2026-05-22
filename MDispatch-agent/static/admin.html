@@ -1,0 +1,2621 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MDispatch - 管理员后台</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #06b6d4;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --bg-hover: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border-color: #334155;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* 侧边栏 */
+        .sidebar {
+            width: 250px;
+            background-color: var(--bg-card);
+            border-right: 1px solid var(--border-color);
+            padding: 20px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .sidebar .logo {
+            padding: 0 20px 20px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .sidebar .menu {
+            list-style: none;
+            margin-top: 20px;
+        }
+
+        .sidebar .menu li {
+            margin-bottom: 4px;
+        }
+
+        .sidebar .menu li a {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all 0.2s;
+            gap: 10px;
+        }
+
+        .sidebar .menu li a:hover,
+        .sidebar .menu li a.active {
+            background-color: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .sidebar .menu li a.active {
+            border-left: 3px solid var(--primary);
+        }
+
+        /* 主内容区 */
+        .main-content {
+            flex: 1;
+            margin-left: 250px;
+            min-height: 100vh;
+        }
+
+        .header {
+            background-color: var(--bg-card);
+            border-bottom: 1px solid var(--border-color);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .header .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header .user-info span {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* 内容区域 */
+        .content {
+            padding: 24px;
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .stat-card .stat-icon {
+            font-size: 28px;
+            margin-bottom: 12px;
+        }
+
+        .stat-card .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .stat-card .stat-label {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        .stat-card.success .stat-value { color: var(--success); }
+        .stat-card.warning .stat-value { color: var(--warning); }
+        .stat-card.danger .stat-value { color: var(--danger); }
+        .stat-card.info .stat-value { color: var(--info); }
+
+        /* 图表区域 */
+        .chart-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .chart-card {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .chart-card h3 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-card h3::before {
+            content: '';
+            width: 3px;
+            height: 16px;
+            background: var(--primary);
+            border-radius: 2px;
+        }
+
+        .chart-content {
+            height: 200px;
+            background-color: var(--bg-dark);
+            border-radius: 8px;
+            padding: 16px;
+            overflow: auto;
+        }
+
+        .no-data {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* 工单趋势图表 */
+        .trend-chart-container {
+            position: relative;
+            height: 100%;
+            padding: 10px 0;
+        }
+
+        .trend-chart {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-around;
+            height: calc(100% - 40px);
+            padding: 0 10px;
+            position: relative;
+            background: linear-gradient(to bottom, transparent 0%, rgba(59, 130, 246, 0.05) 100%);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        /* 网格线 */
+        .trend-chart::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                linear-gradient(rgba(59, 130, 246, 0.08) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59, 130, 246, 0.05) 1px, transparent 1px);
+            background-size: 100% 25%, 20% 100%;
+            pointer-events: none;
+        }
+
+        /* Y轴刻度 */
+        .trend-y-axis {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 0 5px;
+            font-size: 10px;
+            color: var(--text-secondary);
+        }
+
+        .trend-bar-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            position: relative;
+            z-index: 1;
+        }
+
+        .trend-bar {
+            width: 28px;
+            background: linear-gradient(180deg, #60a5fa 0%, var(--primary) 50%, #2563eb 100%);
+            border-radius: 8px 8px 4px 4px;
+            position: relative;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            min-height: 10px;
+            box-shadow: 
+                0 2px 8px rgba(59, 130, 246, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+
+        .trend-bar:hover {
+            transform: scaleX(1.15);
+            box-shadow: 
+                0 4px 16px rgba(59, 130, 246, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+
+        .trend-value {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--primary);
+            white-space: nowrap;
+            background: rgba(15, 23, 42, 0.95);
+            padding: 3px 8px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .trend-bar:hover .trend-value {
+            opacity: 1;
+        }
+
+        /* 柱状图顶部发光效果 */
+        .trend-bar::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 2px;
+            right: 2px;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            border-radius: 4px 4px 0 0;
+        }
+
+        .trend-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 10px;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+
+        .trend-bar-wrapper:hover .trend-label {
+            color: var(--text-primary);
+        }
+
+        /* 图表标题栏 */
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 0 5px;
+        }
+
+        .chart-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .chart-subtitle {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        /* 故障分布图表 */
+        .distribution-chart {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            height: 100%;
+        }
+
+        .distribution-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .distribution-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+        }
+
+        .distribution-type {
+            color: var(--text-primary);
+        }
+
+        .distribution-count {
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        .distribution-bar-bg {
+            height: 8px;
+            background-color: rgba(59, 130, 246, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .distribution-bar {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        /* 月度统计 */
+        .monthly-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 8px;
+            height: 100%;
+        }
+
+        .monthly-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(59, 130, 246, 0.08);
+            border-radius: 8px;
+            padding: 12px 4px;
+        }
+
+        .monthly-item.current {
+            background-color: rgba(59, 130, 246, 0.15);
+            border: 1px solid var(--primary);
+        }
+
+        .month-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .month-total {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 4px 0;
+        }
+
+        .month-rate {
+            font-size: 10px;
+            color: var(--success);
+            font-weight: 500;
+        }
+
+        /* 维修工排名 */
+        .ranking-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            height: 100%;
+        }
+
+        .ranking-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            background-color: rgba(59, 130, 246, 0.05);
+            border-radius: 8px;
+        }
+
+        .ranking-rank {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background-color: var(--primary);
+            color: white;
+            font-size: 12px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ranking-rank:nth-child(1) { background-color: #f59e0b; }
+        .ranking-rank:nth-child(4) { background-color: #f59e0b; }
+        .ranking-rank:nth-child(7) { background-color: #f59e0b; }
+        .ranking-rank:nth-child(10) { background-color: #f59e0b; }
+        .ranking-rank:nth-child(2) { background-color: #94a3b8; }
+        .ranking-rank:nth-child(5) { background-color: #94a3b8; }
+        .ranking-rank:nth-child(8) { background-color: #94a3b8; }
+        .ranking-rank:nth-child(3) { background-color: #d97706; }
+        .ranking-rank:nth-child(6) { background-color: #d97706; }
+        .ranking-rank:nth-child(9) { background-color: #d97706; }
+
+        .ranking-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .ranking-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .ranking-stats {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .ranking-score {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--success);
+        }
+
+        /* 表格样式 */
+        .table-card {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .table-header h3 {
+            font-size: 16px;
+            color: var(--text-primary);
+        }
+
+        .table-header .btn {
+            padding: 8px 16px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        .table-header .btn:hover {
+            background-color: var(--primary-dark);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 12px 20px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .data-table th {
+            background-color: var(--bg-dark);
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .data-table tbody tr:hover {
+            background-color: var(--bg-hover);
+        }
+
+        .data-table .badge {
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        
+        .data-table .action-cell {
+            white-space: nowrap;
+        }
+        
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            margin-right: 6px;
+        }
+        
+        .btn-action.view {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        .btn-action.view:hover {
+            background-color: var(--primary-dark);
+        }
+        
+        .btn-action.delete {
+            background-color: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+        }
+        
+        .btn-action.delete:hover {
+            background-color: rgba(239, 68, 68, 0.25);
+        }
+        
+        .btn-action.assign {
+            background-color: rgba(139, 92, 246, 0.15);
+            color: #a78bfa;
+        }
+        
+        .btn-action.assign:hover {
+            background-color: rgba(139, 92, 246, 0.25);
+        }
+
+        .badge.pending { background-color: rgba(245, 158, 11, 0.2); color: var(--warning); }
+        .badge.waiting { background-color: rgba(139, 92, 246, 0.2); color: #a78bfa; }
+        .badge.processing { background-color: rgba(59, 130, 246, 0.2); color: var(--primary); }
+        .badge.completed { background-color: rgba(16, 185, 129, 0.2); color: var(--success); }
+        .badge.canceled { background-color: rgba(239, 68, 68, 0.2); color: var(--danger); }
+
+        /* 模态框 */
+        .modal-mask {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-mask.show {
+            display: flex;
+        }
+
+        .modal-sheet {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            font-size: 18px;
+            color: var(--text-primary);
+        }
+
+        .modal-close {
+            font-size: 24px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            background-color: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .modal-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .btn-secondary {
+            padding: 8px 16px;
+            background-color: var(--bg-hover);
+            color: var(--text-primary);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            padding: 8px 16px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        /* 搜索栏 */
+        .search-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            align-items: center;
+        }
+
+        .search-bar input {
+            flex: 1;
+            padding: 10px 14px;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .search-bar input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .search-bar select {
+            padding: 10px 14px;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .search-bar select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .search-bar .btn-search {
+            padding: 10px 24px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+        }
+
+        .search-bar .btn-search:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .search-bar .btn-search:active {
+            transform: translateY(0);
+        }
+
+        /* 响应式 */
+        /* 地图图例样式 */
+        .legend-bar {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            box-shadow: 0 0 6px rgba(0,0,0,0.3);
+        }
+        
+        .dot.green { background-color: #10b981; }
+        .dot.red { background-color: #ef4444; }
+        .dot.yellow { background-color: #f59e0b; }
+        .dot.gray { background-color: #6b7280; }
+        
+        .map-container {
+            position: relative;
+        }
+        
+        .map-info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(15, 23, 42, 0.9);
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            z-index: 10;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .chart-row {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 侧边栏 -->
+    <nav class="sidebar">
+        <div class="logo">🔧 MDispatch 管理后台</div>
+        <ul class="menu">
+            <li><a href="#dashboard" class="active" onclick="showSection('dashboard')"><span>📊</span>数据概览</a></li>
+            <li><a href="#orders" onclick="showSection('orders')"><span>📋</span>工单管理</a></li>
+            <li><a href="#engineers" onclick="showSection('engineers')"><span>👷</span>维修工管理</a></li>
+            <li><a href="#devices" onclick="showSection('devices')"><span>🖥️</span>设备管理</a></li>
+            <li><a href="#reports" onclick="showSection('reports')"><span>📈</span>统计报表</a></li>
+            <li><a href="/static/dashboard_v2/index.html" target="_blank"><span>📊</span>数据监控中心</a></li>
+            <li><a href="/static/engineer_map.html" target="_blank"><span>🗺️</span>维修工实时调度地图</a></li>
+        </ul>
+    </nav>
+
+    <!-- 主内容区 -->
+    <div class="main-content">
+        <header class="header">
+            <h1 id="pageTitle">数据概览</h1>
+            <div class="user-info">
+                <span>管理员</span>
+                <span style="width:24px;height:24px;background:var(--primary);border-radius:50%;display:inline-block;"></span>
+            </div>
+        </header>
+
+        <div class="content">
+            <!-- 数据概览 -->
+            <section id="dashboard" class="section">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">📋</div>
+                        <div class="stat-value" id="statTotalOrders">0</div>
+                        <div class="stat-label">工单总数</div>
+                    </div>
+                    <div class="stat-card warning">
+                        <div class="stat-icon">⏳</div>
+                        <div class="stat-value" id="statPending">0</div>
+                        <div class="stat-label">待处理工单</div>
+                    </div>
+                    <div class="stat-card success">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-value" id="statCompleted">0</div>
+                        <div class="stat-label">已完成工单</div>
+                    </div>
+                    <div class="stat-card info">
+                        <div class="stat-icon">👷</div>
+                        <div class="stat-value" id="statEngineers">0</div>
+                        <div class="stat-label">维修工数量</div>
+                    </div>
+                    <div class="stat-card danger">
+                        <div class="stat-icon">🖥️</div>
+                        <div class="stat-value" id="statDevices">0</div>
+                        <div class="stat-label">设备总数</div>
+                    </div>
+                </div>
+
+                <div class="chart-row">
+                    <div class="chart-card">
+                        <h3>📈 工单趋势</h3>
+                        <div class="chart-content"></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>📊 故障类型分布</h3>
+                        <div class="chart-content"></div>
+                    </div>
+                </div>
+
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3>📋 最新工单</h3>
+                        <button class="btn" onclick="openAddOrderModal()">+ 新建工单</button>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>工单ID</th>
+                                <th>故障类型</th>
+                                <th>紧急程度</th>
+                                <th>维修工</th>
+                                <th>状态</th>
+                                <th>创建时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentOrdersTable">
+                            <tr><td colspan="7" style="text-align:center;color:var(--text-secondary);">暂无工单</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 工单管理 -->
+            <section id="orders" class="section" style="display:none;">
+                <div class="search-bar">
+                    <input type="text" id="orderSearch" placeholder="搜索工单ID或设备ID...">
+                    <select id="orderStatusFilter">
+                        <option value="">全部状态</option>
+                        <option value="待人工派单">待派单</option>
+                        <option value="待处理">待处理</option>
+                        <option value="已接单">已接单</option>
+                        <option value="处理中">处理中</option>
+                        <option value="已完成">已完成</option>
+                        <option value="已取消">已取消</option>
+                    </select>
+                    <button class="btn-search" onclick="searchOrders()">🔍 搜索</button>
+                </div>
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3>📋 工单管理</h3>
+                        <button class="btn" onclick="openAddOrderModal()">+ 新建工单</button>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>工单ID</th>
+                                <th>工单类型</th>
+                                <th>设备ID</th>
+                                <th>故障类型</th>
+                                <th>紧急程度</th>
+                                <th>用户信息</th>
+                                <th>维修工</th>
+                                <th>状态</th>
+                                <th>创建时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordersTable">
+                            <tr><td colspan="9" style="text-align:center;color:var(--text-secondary);">暂无工单</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 维修工管理 -->
+            <section id="engineers" class="section" style="display:none;">
+                <div class="search-bar">
+                    <input type="text" id="engineerSearch" placeholder="搜索维修工姓名或ID...">
+                    <select id="engineerStatusFilter">
+                        <option value="">全部状态</option>
+                        <option value="空闲">空闲</option>
+                        <option value="忙碌">忙碌</option>
+                    </select>
+                    <button class="btn" onclick="searchEngineers()">搜索</button>
+                </div>
+                
+                <!-- 维修工实时位置地图 -->
+                <div class="table-card" style="margin-bottom:16px;">
+                    <div class="table-header">
+                        <h3>🗺️ 维修工实时位置</h3>
+                        <div class="legend-bar">
+                            <span class="legend-item"><span class="dot green"></span>空闲</span>
+                            <span class="legend-item"><span class="dot red"></span>忙碌</span>
+                            <span class="legend-item"><span class="dot yellow"></span>休息</span>
+                            <span class="legend-item"><span class="dot gray"></span>离线</span>
+                        </div>
+                    </div>
+                    <div class="map-container">
+                        <div id="engineerMap" style="height:300px;width:100%;border-radius:8px;"></div>
+                        <div class="map-info" id="engineerMapInfo">正在加载位置数据...</div>
+                    </div>
+                </div>
+                
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3>👷 维修工管理</h3>
+                        <button class="btn" onclick="openAddEngineerModal()">+ 添加维修工</button>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>维修工ID</th>
+                                <th>姓名</th>
+                                <th>联系电话</th>
+                                <th>技能专长</th>
+                                <th>当前状态</th>
+                                <th>接单数量</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="engineersTable">
+                            <tr><td colspan="7" style="text-align:center;color:var(--text-secondary);">暂无维修工</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 设备管理 -->
+            <section id="devices" class="section" style="display:none;">
+                <div class="search-bar">
+                    <input type="text" id="deviceSearch" placeholder="搜索设备ID或地址...">
+                    <select id="deviceTypeFilter">
+                        <option value="">全部类型</option>
+                        <option value="电梯">电梯</option>
+                        <option value="机器人">机器人</option>
+                        <option value="空调">空调</option>
+                    </select>
+                    <button class="btn" onclick="searchDevices()">搜索</button>
+                </div>
+                <div class="table-card">
+                    <div class="table-header">
+                        <h3>🖥️ 设备管理</h3>
+                        <button class="btn" onclick="openAddDeviceModal()">+ 添加设备</button>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>设备ID</th>
+                                <th>设备名称</th>
+                                <th>品牌</th>
+                                <th>型号</th>
+                                <th>类型</th>
+                                <th>安装地址</th>
+                                <th>所属用户</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="devicesTable">
+                            <tr><td colspan="9" style="text-align:center;color:var(--text-secondary);">暂无设备</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 统计报表 -->
+            <section id="reports" class="section" style="display:none;">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">📊</div>
+                        <div class="stat-value">98.5%</div>
+                        <div class="stat-label">工单完成率</div>
+                    </div>
+                    <div class="stat-card success">
+                        <div class="stat-icon">⏱️</div>
+                        <div class="stat-value">15分钟</div>
+                        <div class="stat-label">平均响应时间</div>
+                    </div>
+                    <div class="stat-card warning">
+                        <div class="stat-icon">🔧</div>
+                        <div class="stat-value">3.2次/月</div>
+                        <div class="stat-label">平均设备故障率</div>
+                    </div>
+                    <div class="stat-card info">
+                        <div class="stat-icon">👨‍🔧</div>
+                        <div class="stat-value">4.8单/人</div>
+                        <div class="stat-label">人均接单量</div>
+                    </div>
+                </div>
+
+                <div class="chart-row">
+                    <div class="chart-card">
+                        <h3>📈 月度报修统计</h3>
+                        <div class="chart-content"></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>📊 故障类型分布</h3>
+                        <div class="chart-content"></div>
+                    </div>
+                </div>
+
+                <div class="chart-row">
+                    <div class="chart-card" style="grid-column: span 2;">
+                        <h3>🏆 维修工绩效排名</h3>
+                        <div class="chart-content"></div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- 新建工单模态框 -->
+    <div class="modal-mask" id="addOrderModal">
+        <div class="modal-sheet">
+            <div class="modal-header">
+                <h3>新建工单</h3>
+                <span class="modal-close" onclick="closeModal('addOrderModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>工单类型</label>
+                    <select id="addOrderType">
+                        <option value="报警">🚨 报警</option>
+                        <option value="报修">🔧 报修</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>设备ID</label>
+                    <input type="text" id="addOrderDeviceId" placeholder="请输入设备ID">
+                </div>
+                <div class="form-group">
+                    <label>故障类型</label>
+                    <select id="addOrderFaultType">
+                        <option value="困人">困人</option>
+                        <option value="机器失灵">机器失灵</option>
+                        <option value="异响">异响</option>
+                        <option value="门故障">门故障</option>
+                        <option value="停运">停运</option>
+                        <option value="定期保养">定期保养</option>
+                        <option value="其他">其他</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>紧急程度</label>
+                    <select id="addOrderPriority">
+                        <option value="紧急">紧急</option>
+                        <option value="一般">一般</option>
+                        <option value="低">低</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>故障描述</label>
+                    <textarea id="addOrderDescription" placeholder="请输入故障描述"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('addOrderModal')">取消</button>
+                <button class="btn-primary" onclick="submitAddOrder()">确认创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加维修工模态框 -->
+    <div class="modal-mask" id="addEngineerModal">
+        <div class="modal-sheet">
+            <div class="modal-header">
+                <h3>添加维修工</h3>
+                <span class="modal-close" onclick="closeModal('addEngineerModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>维修工ID</label>
+                    <input type="text" id="addEngineerId" placeholder="请输入维修工ID">
+                </div>
+                <div class="form-group">
+                    <label>姓名</label>
+                    <input type="text" id="addEngineerName" placeholder="请输入姓名">
+                </div>
+                <div class="form-group">
+                    <label>联系电话</label>
+                    <input type="text" id="addEngineerPhone" placeholder="请输入联系电话">
+                </div>
+                <div class="form-group">
+                    <label>技能专长（品牌）</label>
+                    <input type="text" id="addEngineerBrand" placeholder="请输入擅长品牌">
+                </div>
+                <div class="form-group">
+                    <label>技能专长（型号）</label>
+                    <input type="text" id="addEngineerModel" placeholder="请输入擅长型号">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('addEngineerModal')">取消</button>
+                <button class="btn-primary" onclick="submitAddEngineer()">确认添加</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加设备模态框 -->
+    <div class="modal-mask" id="addDeviceModal">
+        <div class="modal-sheet">
+            <div class="modal-header">
+                <h3>添加设备</h3>
+                <span class="modal-close" onclick="closeModal('addDeviceModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>设备ID</label>
+                    <input type="text" id="addDeviceId" placeholder="请输入设备ID">
+                </div>
+                <div class="form-group">
+                    <label>设备名称</label>
+                    <input type="text" id="addDeviceName" placeholder="请输入设备名称">
+                </div>
+                <div class="form-group">
+                    <label>品牌</label>
+                    <input type="text" id="addDeviceBrand" placeholder="请输入品牌">
+                </div>
+                <div class="form-group">
+                    <label>型号</label>
+                    <input type="text" id="addDeviceModel" placeholder="请输入型号">
+                </div>
+                <div class="form-group">
+                    <label>类型</label>
+                    <select id="addDeviceType">
+                        <option value="电梯">电梯</option>
+                        <option value="机器人">机器人</option>
+                        <option value="空调">空调</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>安装地址</label>
+                    <textarea id="addDeviceAddress" placeholder="请输入安装地址"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>绑定用户</label>
+                    <select id="addDeviceUserId">
+                        <option value="">未绑定</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('addDeviceModal')">取消</button>
+                <button class="btn-primary" onclick="submitAddDevice()">确认添加</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑维修工模态框 -->
+    <div class="modal-mask" id="editEngineerModal">
+        <div class="modal-sheet">
+            <div class="modal-header">
+                <h3>编辑维修工</h3>
+                <span class="modal-close" onclick="closeModal('editEngineerModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editEngineerId">
+                <div class="form-group">
+                    <label>姓名</label>
+                    <input type="text" id="editEngineerName" placeholder="请输入姓名">
+                </div>
+                <div class="form-group">
+                    <label>联系电话</label>
+                    <input type="text" id="editEngineerPhone" placeholder="请输入联系电话">
+                </div>
+                <div class="form-group">
+                    <label>技能专长（品牌）</label>
+                    <input type="text" id="editEngineerBrand" placeholder="请输入擅长品牌">
+                </div>
+                <div class="form-group">
+                    <label>技能专长（型号）</label>
+                    <input type="text" id="editEngineerModel" placeholder="请输入擅长型号">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('editEngineerModal')">取消</button>
+                <button class="btn-primary" onclick="submitEditEngineer()">确认修改</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑设备模态框 -->
+    <div class="modal-mask" id="editDeviceModal">
+        <div class="modal-sheet">
+            <div class="modal-header">
+                <h3>编辑设备</h3>
+                <span class="modal-close" onclick="closeModal('editDeviceModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editDeviceId">
+                <div class="form-group">
+                    <label>设备名称</label>
+                    <input type="text" id="editDeviceName" placeholder="请输入设备名称">
+                </div>
+                <div class="form-group">
+                    <label>品牌</label>
+                    <input type="text" id="editDeviceBrand" placeholder="请输入品牌">
+                </div>
+                <div class="form-group">
+                    <label>型号</label>
+                    <input type="text" id="editDeviceModel" placeholder="请输入型号">
+                </div>
+                <div class="form-group">
+                    <label>类型</label>
+                    <select id="editDeviceType">
+                        <option value="电梯">电梯</option>
+                        <option value="机器人">机器人</option>
+                        <option value="空调">空调</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>安装地址</label>
+                    <textarea id="editDeviceAddress" placeholder="请输入安装地址"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>绑定用户</label>
+                    <select id="editDeviceUserId">
+                        <option value="">未绑定</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('editDeviceModal')">取消</button>
+                <button class="btn-primary" onclick="submitEditDevice()">确认修改</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 派单模态框 -->
+    <div class="modal-mask" id="assignOrderModal">
+        <div class="modal-sheet">
+            <div class="modal-header">
+                <h3>人工派单</h3>
+                <span class="modal-close" onclick="closeModal('assignOrderModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="assignOrderId">
+                <div class="form-group">
+                    <label>工单信息</label>
+                    <div id="assignOrderInfo" style="padding:12px;background:var(--bg-dark);border-radius:6px;color:var(--text-secondary);font-size:14px;">
+                        请选择工单
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>选择维修工</label>
+                    <select id="assignEngineerSelect" required>
+                        <option value="">请选择维修工</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>派单备注（可选）</label>
+                    <textarea id="assignRemark" placeholder="请输入派单备注..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('assignOrderModal')">取消</button>
+                <button class="btn-primary" onclick="submitAssignOrder()">确认派单</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        let currentSection = 'dashboard';
+        let engineerMap = null;
+        let engineerMarkers = {};
+        let isFirstMapLoad = true;
+        let allOrders = {};
+        let allEngineers = {};
+        let allDevices = {};
+
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(section => {
+                section.style.display = 'none';
+            });
+            document.getElementById(sectionId).style.display = 'block';
+
+            document.querySelectorAll('.menu li a').forEach(link => {
+                link.classList.remove('active');
+            });
+            document.querySelector(`a[href="#${sectionId}"]`).classList.add('active');
+
+            const titles = {
+                'dashboard': '数据概览',
+                'orders': '工单管理',
+                'engineers': '维修工管理',
+                'devices': '设备管理',
+                'reports': '统计报表'
+            };
+            document.getElementById('pageTitle').textContent = titles[sectionId];
+            currentSection = sectionId;
+
+            if (sectionId === 'dashboard') loadDashboard();
+            if (sectionId === 'orders') {
+                document.getElementById('orderSearch').value = '';
+                document.getElementById('orderStatusFilter').value = '';
+                loadOrders();
+            }
+            if (sectionId === 'engineers') {
+                document.getElementById('engineerSearch').value = '';
+                document.getElementById('engineerStatusFilter').value = '';
+                loadEngineers();
+                initEngineerMap();
+            }
+            if (sectionId === 'devices') {
+                document.getElementById('deviceSearch').value = '';
+                document.getElementById('deviceTypeFilter').value = '';
+                loadDevices();
+            }
+            if (sectionId === 'reports') loadReports();
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('show');
+        }
+
+        async function editEngineer(id) {
+            try {
+                console.log('editEngineer called with id:', id);
+                const url = '/api/engineer/info/' + id;
+                console.log('Fetching:', url);
+                const res = await fetch(url);
+                console.log('Response status:', res.status);
+                if (!res.ok) {
+                    alert('获取维修工信息失败: HTTP错误 ' + res.status);
+                    return;
+                }
+                const data = await res.json();
+                console.log('Response data:', data);
+                if (data.status === 'success') {
+                    const engineer = data.data;
+                    document.getElementById('editEngineerId').value = id;
+                    document.getElementById('editEngineerName').value = engineer["name"] || '';
+                    document.getElementById('editEngineerPhone').value = engineer["phone"] || '';
+                    document.getElementById('editEngineerBrand').value = engineer["skills_brand"] || '';
+                    document.getElementById('editEngineerModel').value = engineer["skills_model"] || '';
+                    document.getElementById('editEngineerModal').classList.add('show');
+                } else {
+                    alert('获取维修工信息失败: ' + (data.message || '未知错误'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('获取维修工信息失败: ' + (error.message || error.toString()));
+            }
+        }
+
+        async function submitEditEngineer() {
+            const id = document.getElementById('editEngineerId').value;
+            const data = {
+                name: document.getElementById('editEngineerName').value,
+                phone: document.getElementById('editEngineerPhone').value,
+                skills_brand: document.getElementById('editEngineerBrand').value,
+                skills_model: document.getElementById('editEngineerModel').value
+            };
+            
+            const res = await fetch(`/api/engineer/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await res.json();
+            if (result.status === 'success') {
+                alert('修改成功');
+                closeModal('editEngineerModal');
+                loadEngineers();
+            } else {
+                alert('修改失败: ' + (result.message || '未知错误'));
+            }
+        }
+
+        async function editDevice(id) {
+            try {
+                console.log('editDevice called with id:', id);
+                const [deviceRes, usersRes] = await Promise.all([
+                    fetch(`/api/device/${id}`),
+                    fetch('/api/users')
+                ]);
+                
+                console.log('Device response status:', deviceRes.status);
+                console.log('Users response status:', usersRes.status);
+                
+                if (!deviceRes.ok) {
+                    alert('获取设备信息失败: HTTP错误 ' + deviceRes.status);
+                    return;
+                }
+                if (!usersRes.ok) {
+                    alert('获取用户列表失败: HTTP错误 ' + usersRes.status);
+                    return;
+                }
+                
+                const deviceData = await deviceRes.json();
+                const usersData = await usersRes.json();
+                
+                console.log('Device data:', deviceData);
+                console.log('Users data:', usersData);
+                
+                if (deviceData.status === 'success') {
+                    const device = deviceData.data;
+                    
+                    document.getElementById('editDeviceId').value = id;
+                    document.getElementById('editDeviceName').value = device["device_name"] || device["设备名称"] || '';
+                    document.getElementById('editDeviceBrand').value = device["brand"] || device["品牌"] || '';
+                    document.getElementById('editDeviceModel').value = device["model"] || device["型号"] || '';
+                    document.getElementById('editDeviceType').value = device["device_type"] || device["设备类型"] || '电梯';
+                    document.getElementById('editDeviceAddress').value = device["installation_address"] || device["安装地址"] || '';
+                    
+                    const userSelect = document.getElementById('editDeviceUserId');
+                    userSelect.innerHTML = '<option value="">未绑定</option>';
+                    const users = usersData.data || {};
+                    for (const uid in users) {
+                        const user = users[uid];
+                        const selected = (device["user_id"] === uid || device["用户ID"] === uid) ? 'selected' : '';
+                        userSelect.innerHTML += `<option value="${uid}" ${selected}>${user["name"]} (${user["phone"]})</option>`;
+                    }
+                    
+                    document.getElementById('editDeviceModal').classList.add('show');
+                } else {
+                    alert('获取设备信息失败: ' + (deviceData.message || '未知错误'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('获取设备信息失败: ' + (error.message || error.toString()));
+            }
+        }
+
+        async function submitEditDevice() {
+            const id = document.getElementById('editDeviceId').value;
+            const data = {
+                device_name: document.getElementById('editDeviceName').value,
+                brand: document.getElementById('editDeviceBrand').value,
+                model: document.getElementById('editDeviceModel').value,
+                device_type: document.getElementById('editDeviceType').value,
+                installation_address: document.getElementById('editDeviceAddress').value,
+                user_id: document.getElementById('editDeviceUserId').value || null
+            };
+            
+            const res = await fetch(`/api/device/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await res.json();
+            if (result.status === 'success') {
+                alert('修改成功');
+                closeModal('editDeviceModal');
+                loadDevices();
+            } else {
+                alert('修改失败: ' + (result.message || '未知错误'));
+            }
+        }
+
+        // 仪表盘数据
+        async function loadDashboard() {
+            const [ordersRes, engineersRes, devicesRes] = await Promise.all([
+                fetch('/api/admin/orders'),
+                fetch('/api/engineers'),
+                fetch('/api/devices')
+            ]);
+
+            const ordersData = await ordersRes.json();
+            const engineersData = await engineersRes.json();
+            const devicesData = await devicesRes.json();
+
+            allOrders = ordersData.data || {};
+            allEngineers = engineersData.data || {};
+            allDevices = devicesData.data || {};
+
+            let total = 0, pending = 0, completed = 0, processing = 0;
+            let faultTypeStats = {};
+            
+            for (const id in allOrders) {
+                total++;
+                const order = allOrders[id];
+                const status = order["内部维修工单表"]["工单状态"];
+                const faultType = order["内部维修工单表"]["故障类型"];
+                
+                if (status === '待人工派单') pending++;
+                if (status === '已完成') completed++;
+                if (status === '已接单' || status === '处理中') processing++;
+                
+                faultTypeStats[faultType] = (faultTypeStats[faultType] || 0) + 1;
+            }
+
+            document.getElementById('statTotalOrders').textContent = total;
+            document.getElementById('statPending').textContent = pending;
+            document.getElementById('statCompleted').textContent = completed;
+            document.getElementById('statEngineers').textContent = Object.keys(allEngineers).length;
+            document.getElementById('statDevices').textContent = Object.keys(allDevices).length;
+
+            loadRecentOrders();
+            updateCharts(faultTypeStats, total);
+        }
+
+        function updateCharts(faultTypeStats, totalOrders) {
+            updateOrderTrendChart();
+            updateFaultDistributionChart(faultTypeStats, totalOrders);
+            updateMonthlyStats();
+            updateEngineerRanking();
+        }
+        
+        function updateOrderTrendChart() {
+            const monthOrderCount = {};
+            for (const id in allOrders) {
+                const order = allOrders[id];
+                const time = order["内部维修工单表"]["报修/报警时间"] || order["内部维修工单表"]["下单时间"] || '';
+                if (time) {
+                    const month = time.substring(0, 7);
+                    monthOrderCount[month] = (monthOrderCount[month] || 0) + 1;
+                }
+            }
+            
+            const sortedMonths = Object.keys(monthOrderCount).sort();
+            const maxCount = Math.max(...Object.values(monthOrderCount), 1);
+            
+            // 生成Y轴刻度
+            const yAxisMarks = [];
+            for (let i = 0; i <= 4; i++) {
+                const value = Math.round(maxCount * (4 - i) / 4);
+                yAxisMarks.push(value);
+            }
+            
+            // 生成图表标题
+            const totalOrders = Object.values(monthOrderCount).reduce((a, b) => a + b, 0);
+            const latestMonth = sortedMonths[sortedMonths.length - 1] || '';
+            const latestCount = latestMonth ? monthOrderCount[latestMonth] : 0;
+            
+            let chartHTML = `
+                <div class="trend-chart-container">
+                    <div class="chart-header">
+                        <div>
+                            <div class="chart-title">工单趋势</div>
+                            <div class="chart-subtitle">近 ${sortedMonths.length} 个月共 ${totalOrders} 单</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 20px; font-weight: 700; color: var(--primary);">${latestCount}</div>
+                            <div style="font-size: 10px; color: var(--text-secondary);">本月工单</div>
+                        </div>
+                    </div>
+                    <div class="trend-y-axis">${yAxisMarks.map(m => `<span>${m}</span>`).join('')}</div>
+                    <div class="trend-chart">
+            `;
+            
+            sortedMonths.forEach(month => {
+                const count = monthOrderCount[month];
+                const height = (count / maxCount) * 100;
+                const monthLabel = month.substring(2); // 去掉年份前缀，显示为 YY-MM 格式
+                chartHTML += `
+                    <div class="trend-bar-wrapper">
+                        <div class="trend-bar" style="height:${height}%" title="${month}: ${count}单">
+                            <span class="trend-value">${count}</span>
+                        </div>
+                        <span class="trend-label">${monthLabel}</span>
+                    </div>
+                `;
+            });
+            
+            chartHTML += '</div></div>';
+            
+            const trendCard = document.querySelector('.chart-card:nth-child(1) .chart-content');
+            if (trendCard) {
+                trendCard.innerHTML = sortedMonths.length > 0 ? chartHTML : '<div class="no-data">暂无数据</div>';
+            }
+        }
+        
+        function updateFaultDistributionChart(faultTypeStats, totalOrders) {
+            const sortedTypes = Object.entries(faultTypeStats).sort((a, b) => b[1] - a[1]);
+            
+            let chartHTML = '<div class="distribution-chart">';
+            sortedTypes.forEach(([type, count]) => {
+                const percentage = totalOrders > 0 ? ((count / totalOrders) * 100).toFixed(1) : 0;
+                const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+                const color = colors[sortedTypes.indexOf([type, count]) % colors.length];
+                
+                chartHTML += `
+                    <div class="distribution-item">
+                        <div class="distribution-info">
+                            <span class="distribution-type">${type}</span>
+                            <span class="distribution-count">${count}单 (${percentage}%)</span>
+                        </div>
+                        <div class="distribution-bar-bg">
+                            <div class="distribution-bar" style="width:${percentage}%;background:${color}"></div>
+                        </div>
+                    </div>
+                `;
+            });
+            chartHTML += '</div>';
+            
+            const distCard = document.querySelector('.chart-card:nth-child(2) .chart-content');
+            if (distCard) {
+                distCard.innerHTML = sortedTypes.length > 0 ? chartHTML : '<div class="no-data">暂无数据</div>';
+            }
+        }
+        
+        function updateMonthlyStats() {
+            const monthlyStats = {};
+            const currentMonth = new Date().toISOString().substring(0, 7);
+            
+            for (const id in allOrders) {
+                const order = allOrders[id];
+                const time = order["内部维修工单表"]["报修/报警时间"] || order["内部维修工单表"]["下单时间"] || '';
+                if (time) {
+                    const month = time.substring(0, 7);
+                    if (!monthlyStats[month]) {
+                        monthlyStats[month] = { total: 0, completed: 0 };
+                    }
+                    monthlyStats[month].total++;
+                    if (order["内部维修工单表"]["工单状态"] === '已完成') {
+                        monthlyStats[month].completed++;
+                    }
+                }
+            }
+            
+            const recentMonths = Object.keys(monthlyStats).sort().slice(-6);
+            let statsHTML = '<div class="monthly-grid">';
+            recentMonths.forEach(month => {
+                const stats = monthlyStats[month];
+                const rate = stats.total > 0 ? ((stats.completed / stats.total) * 100).toFixed(0) : 0;
+                statsHTML += `
+                    <div class="monthly-item ${month === currentMonth ? 'current' : ''}">
+                        <div class="month-label">${month.substring(5)}月</div>
+                        <div class="month-total">${stats.total}</div>
+                        <div class="month-rate">完成率 ${rate}%</div>
+                    </div>
+                `;
+            });
+            statsHTML += '</div>';
+            
+            const statsCard = document.querySelector('.chart-card:nth-child(3) .chart-content');
+            if (statsCard) {
+                statsCard.innerHTML = recentMonths.length > 0 ? statsHTML : '<div class="no-data">暂无数据</div>';
+            }
+        }
+        
+        function updateEngineerRanking() {
+            const engineerStats = {};
+            const excludedIds = ['未分配', '暂未分配', 'none', 'null', '', ' ', 'undefined'];
+            
+            for (const id in allOrders) {
+                const order = allOrders[id];
+                // 使用维修工ID来关联，而不是姓名
+                const engineerId = order["维修工窗口"]["维修工ID"] || order["用户端维修工单表"]["维修人员信息"]?.["维修工ID"] || '';
+                const engineerName = order["维修工窗口"]["维修工姓名"] || order["用户端维修工单表"]["维修人员信息"]?.["维修工姓名"] || '未知';
+                
+                // 过滤掉未分配的维修工
+                if (engineerId && !excludedIds.includes(engineerId.trim())) {
+                    if (!engineerStats[engineerId]) {
+                        engineerStats[engineerId] = { name: engineerName, completed: 0, total: 0 };
+                    }
+                    // 更新最新姓名（可能改名）
+                    engineerStats[engineerId].name = engineerName;
+                    engineerStats[engineerId].total++;
+                    if (order["内部维修工单表"]["工单状态"] === '已完成') {
+                        engineerStats[engineerId].completed++;
+                    }
+                }
+            }
+            
+            const sortedEngineers = Object.entries(engineerStats)
+                .sort((a, b) => b[1].completed - a[1].completed)
+                .slice(0, 5);
+            
+            let rankingHTML = '<div class="ranking-list">';
+            sortedEngineers.forEach(([engineerId, stats], index) => {
+                const rate = stats.total > 0 ? ((stats.completed / stats.total) * 100).toFixed(0) : 0;
+                rankingHTML += `
+                    <div class="ranking-item">
+                        <div class="ranking-rank">${index + 1}</div>
+                        <div class="ranking-info">
+                            <span class="ranking-name">${stats.name}</span>
+                            <span class="ranking-stats">完成 ${stats.completed}/${stats.total} 单</span>
+                        </div>
+                        <div class="ranking-score">${rate}%<span style="font-size:10px;color:#9ca3af;margin-left:2px;">完成率</span></div>
+                    </div>
+                `;
+            });
+            rankingHTML += '</div>';
+            
+            const rankingCard = document.querySelector('#reports .chart-row:last-child .chart-card .chart-content');
+            if (rankingCard) {
+                rankingCard.innerHTML = sortedEngineers.length > 0 ? rankingHTML : '<div class="no-data">暂无数据</div>';
+            }
+        }
+
+        async function loadRecentOrders() {
+            const res = await fetch('/api/admin/orders');
+            const data = await res.json();
+            const orders = data.data || {};
+            const tbody = document.getElementById('recentOrdersTable');
+            tbody.innerHTML = '';
+
+            const orderList = Object.values(orders).slice(0, 5);
+            if (orderList.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);">暂无工单</td></tr>';
+                return;
+            }
+
+            orderList.forEach(order => {
+                const internal = order["内部维修工单表"];
+                const user = order["用户端维修工单表"];
+                const task = order["维修工窗口"];
+                const status = internal["工单状态"];
+                let badgeClass = 'pending';
+                if (status === '已接单' || status === '处理中') badgeClass = 'processing';
+                if (status === '已完成') badgeClass = 'completed';
+                if (status === '已取消') badgeClass = 'canceled';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${internal["工单ID"]}</td>
+                    <td>${internal["故障类型"]}</td>
+                    <td>${internal["紧急程度"]}</td>
+                    <td>${task["维修工姓名"] || '未分配'}</td>
+                    <td><span class="badge ${badgeClass}">${status}</span></td>
+                    <td>${internal["报修/报警时间"] || internal["下单时间"] || '-'}</td>
+                    <td><button class="btn" style="padding:4px 10px;font-size:12px;" onclick="viewOrderDetail('${internal["工单ID"]}')">查看</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function loadOrders(keyword = '', statusFilter = '') {
+            const res = await fetch('/api/admin/orders');
+            const data = await res.json();
+            const orders = data.data || {};
+            const tbody = document.getElementById('ordersTable');
+            tbody.innerHTML = '';
+
+            if (Object.keys(orders).length === 0) {
+                tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-secondary);">暂无工单</td></tr>';
+                return;
+            }
+
+            for (const id in orders) {
+                const order = orders[id];
+                const internal = order["内部维修工单表"];
+                const user = order["用户端维修工单表"];
+                const task = order["维修工窗口"];
+                
+                const orderId = internal["工单ID"] || '';
+                const deviceId = internal["设备ID"] || '';
+                const status = internal["工单状态"];
+                const orderType = internal["工单类型"] || task["工单类型"] || '报警';
+                
+                if (keyword && !orderId.toLowerCase().includes(keyword) && !deviceId.toLowerCase().includes(keyword)) {
+                    continue;
+                }
+                
+                if (statusFilter && status !== statusFilter) {
+                    continue;
+                }
+                
+                const userInfo = user["用户信息"] || user;
+                
+                let badgeClass = 'pending';
+                if (status === '待处理') badgeClass = 'waiting';
+                if (status === '已接单' || status === '处理中') badgeClass = 'processing';
+                if (status === '已完成') badgeClass = 'completed';
+                if (status === '已取消') badgeClass = 'canceled';
+
+                const canAssign = status === '待人工派单';
+                const assignBtn = canAssign ? `<button class="btn-action assign" onclick="openAssignModal('${orderId}')">派单</button>` : '';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${orderId}</td>
+                    <td><span class="badge ${orderType === '报警' ? 'processing' : 'waiting'}">${orderType === '报警' ? '🚨 报警' : '🔧 报修'}</span></td>
+                    <td>${deviceId}</td>
+                    <td>${internal["故障类型"] || user["故障类型"] || '-'}</td>
+                    <td>${internal["紧急程度"] || '-'}</td>
+                    <td>${userInfo["用户姓名"] || internal["用户姓名"] || '-'} ${userInfo["用户电话"] || userInfo["联系电话"] || internal["联系电话"] || ''}</td>
+                    <td>${task["维修工姓名"] || user["维修工姓名"] || '未分配'}</td>
+                    <td><span class="badge ${badgeClass}">${status}</span></td>
+                    <td>${internal["报修/报警时间"] || internal["下单时间"] || '-'}</td>
+                    <td class="action-cell">
+                        <button class="btn-action view" onclick="viewOrderDetail('${orderId}')">查看</button>
+                        ${assignBtn}
+                        <button class="btn-action delete" onclick="deleteOrder('${orderId}')">删除</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            }
+        }
+
+        async function loadEngineers(keyword = '', statusFilter = '') {
+            const res = await fetch('/api/engineers');
+            const data = await res.json();
+            const engineers = data.data || {};
+            const tbody = document.getElementById('engineersTable');
+            tbody.innerHTML = '';
+
+            if (Object.keys(engineers).length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);">暂无维修工</td></tr>';
+                return;
+            }
+
+            for (const id in engineers) {
+                const engineer = engineers[id];
+                const engineerId = engineer["engineer_id"] || '';
+                const name = engineer["name"] || '';
+                const status = engineer["status"];
+                
+                if (keyword && !engineerId.toLowerCase().includes(keyword) && !name.toLowerCase().includes(keyword)) {
+                    continue;
+                }
+                
+                if (statusFilter && status !== statusFilter) {
+                    continue;
+                }
+                
+                const statusClass = engineer["status"] === '空闲' ? 'success' : 'warning';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${engineerId}</td>
+                    <td>${name}</td>
+                    <td>${engineer["phone"]}</td>
+                    <td>${engineer["skill_brand"] || '-'} ${engineer["skill_model"] || ''}</td>
+                    <td><span class="badge ${statusClass === 'success' ? 'completed' : 'processing'}">${status}</span></td>
+                    <td>${engineer["completed_tasks"] || 0}</td>
+                    <td>
+                        <button class="btn" style="padding:4px 8px;font-size:12px;margin-right:4px;" onclick="editEngineer('${id}')">编辑</button>
+                        <button class="btn btn-secondary" style="padding:4px 8px;font-size:12px;" onclick="deleteEngineer('${id}')">删除</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            }
+        }
+
+        async function loadDevices(keyword = '', typeFilter = '') {
+            const res = await fetch('/api/devices');
+            const data = await res.json();
+            const devices = data.data || {};
+            const tbody = document.getElementById('devicesTable');
+            tbody.innerHTML = '';
+
+            if (Object.keys(devices).length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-secondary);">暂无设备</td></tr>';
+                return;
+            }
+
+            for (const id in devices) {
+                const device = devices[id];
+                const deviceId = device["设备ID"] || '';
+                const address = device["安装地址"] || '';
+                const type = device["设备类型"] || '';
+                
+                if (keyword && !deviceId.toLowerCase().includes(keyword) && !address.toLowerCase().includes(keyword)) {
+                    continue;
+                }
+                
+                if (typeFilter && type !== typeFilter) {
+                    continue;
+                }
+
+                const tr = document.createElement('tr');
+                const userName = device["所属用户姓名"] || device["用户姓名"] || '-';
+                tr.innerHTML = `
+                    <td>${deviceId}</td>
+                    <td>${device["设备名称"] || '-'}</td>
+                    <td>${device["品牌"] || '-'}</td>
+                    <td>${device["型号"] || '-'}</td>
+                    <td>${type}</td>
+                    <td>${address}</td>
+                    <td>${userName}</td>
+                    <td><span class="badge completed">正常</span></td>
+                    <td>
+                        <button class="btn" style="padding:4px 8px;font-size:12px;margin-right:4px;" onclick="editDevice('${id}')">编辑</button>
+                        <button class="btn btn-secondary" style="padding:4px 8px;font-size:12px;" onclick="deleteDevice('${id}')">删除</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            }
+        }
+
+        function openAddOrderModal() {
+            document.getElementById('addOrderModal').classList.add('show');
+        }
+
+        async function submitAddOrder() {
+            const orderType = document.getElementById('addOrderType').value;
+            const deviceId = document.getElementById('addOrderDeviceId').value;
+            const faultType = document.getElementById('addOrderFaultType').value;
+            const priority = document.getElementById('addOrderPriority').value;
+            const description = document.getElementById('addOrderDescription').value;
+
+            if (!deviceId) {
+                alert('请输入设备ID');
+                return;
+            }
+
+            const res = await fetch('/api/alarm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    text: description || faultType,
+                    device_id: deviceId,
+                    order_type: orderType,
+                    fault_type: faultType,
+                })
+            });
+
+            const data = await res.json();
+            if (data.status === 'success') {
+                alert('工单创建成功');
+                closeModal('addOrderModal');
+                loadOrders();
+                loadDashboard();
+            } else {
+                alert('创建失败: ' + (data.message || '未知错误'));
+            }
+        }
+
+        function openAddEngineerModal() {
+            document.getElementById('addEngineerModal').classList.add('show');
+        }
+
+        async function submitAddEngineer() {
+            const engineerId = document.getElementById('addEngineerId').value;
+            const name = document.getElementById('addEngineerName').value;
+            const phone = document.getElementById('addEngineerPhone').value;
+            const brand = document.getElementById('addEngineerBrand').value;
+            const model = document.getElementById('addEngineerModel').value;
+
+            if (!engineerId || !name || !phone) {
+                alert('请填写必填项');
+                return;
+            }
+
+            const res = await fetch('/api/engineer/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    engineer_id: engineerId,
+                    name,
+                    phone,
+                    password: '123456',
+                    skill_brand: brand,
+                    skill_model: model,
+                    status: '空闲'
+                })
+            });
+
+            const data = await res.json();
+            if (data.status === 'success') {
+                alert('维修工添加成功');
+                closeModal('addEngineerModal');
+                loadEngineers();
+            } else {
+                alert('添加失败: ' + (data.message || '未知错误'));
+            }
+        }
+
+        async function openAddDeviceModal() {
+            // 加载用户列表
+            const userSelect = document.getElementById('addDeviceUserId');
+            userSelect.innerHTML = '<option value="">未绑定</option>';
+            
+            try {
+                const usersRes = await fetch('/api/users');
+                const usersData = await usersRes.json();
+                const users = usersData.data || {};
+                for (const uid in users) {
+                    const user = users[uid];
+                    userSelect.innerHTML += `<option value="${uid}">${user["name"]} (${user["phone"]})</option>`;
+                }
+            } catch (error) {
+                console.error('加载用户列表失败:', error);
+            }
+            
+            document.getElementById('addDeviceModal').classList.add('show');
+        }
+
+        async function submitAddDevice() {
+            const deviceId = document.getElementById('addDeviceId').value;
+            const deviceName = document.getElementById('addDeviceName').value;
+            const brand = document.getElementById('addDeviceBrand').value;
+            const model = document.getElementById('addDeviceModel').value;
+            const type = document.getElementById('addDeviceType').value;
+            const address = document.getElementById('addDeviceAddress').value;
+            const userId = document.getElementById('addDeviceUserId').value;
+
+            if (!deviceId) {
+                alert('请输入设备ID');
+                return;
+            }
+
+            const res = await fetch('/api/device/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    device_id: deviceId,
+                    device_name: deviceName,
+                    brand,
+                    model,
+                    device_type: type,
+                    address,
+                    status: '正常',
+                    user_id: userId || null
+                })
+            });
+
+            const data = await res.json();
+            if (data.status === 'success') {
+                alert('设备添加成功');
+                closeModal('addDeviceModal');
+                loadDevices();
+            } else {
+                alert('添加失败: ' + (data.message || '未知错误'));
+            }
+        }
+
+        function searchOrders() {
+            const keyword = document.getElementById('orderSearch').value.toLowerCase();
+            const status = document.getElementById('orderStatusFilter').value;
+            loadOrders(keyword, status);
+        }
+
+        function searchEngineers() {
+            const keyword = document.getElementById('engineerSearch').value.toLowerCase();
+            const status = document.getElementById('engineerStatusFilter').value;
+            loadEngineers(keyword, status);
+        }
+
+        function searchDevices() {
+            const keyword = document.getElementById('deviceSearch').value.toLowerCase();
+            const type = document.getElementById('deviceTypeFilter').value;
+            loadDevices(keyword, type);
+        }
+
+        async function openAssignModal(orderId) {
+            const order = allOrders[orderId];
+            if (!order) {
+                alert('工单不存在');
+                return;
+            }
+            
+            const internal = order["内部维修工单表"];
+            const user = order["用户端维修工单表"];
+            
+            document.getElementById('assignOrderId').value = orderId;
+            document.getElementById('assignOrderInfo').innerHTML = 
+                '工单ID：' + (internal["工单ID"] || '-') + '<br>' +
+                '设备ID：' + (internal["设备ID"] || '-') + '<br>' +
+                '故障类型：' + (internal["故障类型"] || user["故障类型"] || '-') + '<br>' +
+                '紧急程度：' + (internal["紧急程度"] || '-');
+            
+            const engineerSelect = document.getElementById('assignEngineerSelect');
+            engineerSelect.innerHTML = '<option value="">请选择维修工</option>';
+            
+            const res = await fetch('/api/engineers');
+            const data = await res.json();
+            if (data.status === 'success') {
+                const engineers = data.data || {};
+                for (const id in engineers) {
+                    const engineer = engineers[id];
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = engineer["name"] + ' (' + engineer["phone"] + ')';
+                    engineerSelect.appendChild(option);
+                }
+            }
+            
+            document.getElementById('assignRemark').value = '';
+            document.getElementById('assignOrderModal').classList.add('show');
+        }
+
+        async function submitAssignOrder() {
+            const orderId = document.getElementById('assignOrderId').value;
+            const engineerId = document.getElementById('assignEngineerSelect').value;
+            const remark = document.getElementById('assignRemark').value;
+            
+            if (!engineerId) {
+                alert('请选择维修工');
+                return;
+            }
+            
+            const res = await fetch('/api/admin/assign-order', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    order_id: orderId,
+                    engineer_id: engineerId,
+                    remark: remark
+                })
+            });
+            
+            const data = await res.json();
+            if (data.status === 'success') {
+                alert('派单成功，工单状态已更新为"待处理"');
+                closeModal('assignOrderModal');
+                loadOrders();
+                loadDashboard();
+            } else {
+                alert('派单失败: ' + (data.message || '未知错误'));
+            }
+        }
+
+        function viewOrderDetail(orderId) {
+            const order = allOrders[orderId];
+            if (!order) {
+                alert('工单不存在');
+                return;
+            }
+            
+            const internal = order["内部维修工单表"];
+            const user = order["用户端维修工单表"];
+            const task = order["维修工窗口"];
+            const device = order["设备管理表"] || {};
+            
+            // 兼容处理：用户信息可能在嵌套对象中，也可能在扁平字段中
+            const userInfo = user["用户信息"] || user;
+            const deviceInfo = device["设备信息"] || device;
+            
+            let detailHtml = `
+                <div style="max-height:60vh;overflow-y:auto;padding:10px;">
+                    <h4 style="color:var(--primary);margin-bottom:15px;">📋 工单详情</h4>
+                    
+                    <div style="margin-bottom:15px;padding-bottom:15px;border-bottom:1px solid var(--border-color);">
+                        <div><strong>工单 ID:</strong> ${internal["工单 ID"]}</div>
+                        <div><strong>创建时间:</strong> ${internal["报修/报警时间"] || internal["下单时间"] || '-'}</div>
+                        <div><strong>工单状态:</strong> <span class="badge ${getStatusClass(internal["工单状态"])}">${internal["工单状态"]}</span></div>
+                    </div>
+                    
+                    <div style="margin-bottom:15px;padding-bottom:15px;border-bottom:1px solid var(--border-color);">
+                        <h5 style="color:var(--text-primary);margin-bottom:10px;">🔧 故障信息</h5>
+                        <div><strong>故障类型:</strong> ${internal["故障类型"] || user["故障类型"] || '-'}</div>
+                        <div><strong>紧急程度:</strong> ${internal["紧急程度"] || '-'}</div>
+                        <div><strong>故障描述:</strong> ${internal["故障描述"] || '-'}</div>
+                    </div>
+                    
+                    <div style="margin-bottom:15px;padding-bottom:15px;border-bottom:1px solid var(--border-color);">
+                        <h5 style="color:var(--text-primary);margin-bottom:10px;">🖥️ 设备信息</h5>
+                        <div><strong>设备 ID:</strong> ${internal["设备 ID"] || deviceInfo["设备 ID"] || '-'}</div>
+                        <div><strong>设备名称:</strong> ${deviceInfo["设备名称"] || '-'}</div>
+                        <div><strong>设备品牌:</strong> ${deviceInfo["品牌"] || internal["设备品牌"] || '-'}</div>
+                        <div><strong>设备型号:</strong> ${deviceInfo["型号"] || internal["设备型号"] || '-'}</div>
+                        <div><strong>安装地址:</strong> ${deviceInfo["安装地址"] || deviceInfo["绑定地址"] || '-'}</div>
+                    </div>
+                    
+                    <div style="margin-bottom:15px;padding-bottom:15px;border-bottom:1px solid var(--border-color);">
+                        <h5 style="color:var(--text-primary);margin-bottom:10px;">👤 用户信息</h5>
+                        <div><strong>用户姓名:</strong> ${userInfo["用户姓名"] || internal["用户姓名"] || '-'}</div>
+                        <div><strong>联系电话:</strong> ${userInfo["联系电话"] || userInfo["用户电话"] || internal["联系电话"] || '-'}</div>
+                        <div><strong>用户地址:</strong> ${userInfo["地址"] || userInfo["用户地址"] || internal["地址"] || '-'}</div>
+                    </div>
+                    
+                    <div style="margin-bottom:15px;">
+                        <h5 style="color:var(--text-primary);margin-bottom:10px;">👷 维修工信息</h5>
+                        <div><strong>维修工姓名:</strong> ${task["维修工姓名"] || user["维修工姓名"] || '未分配'}</div>
+                        <div><strong>联系电话:</strong> ${task["联系电话"] || user["维修工电话"] || '-'}</div>
+                        <div><strong>任务状态:</strong> ${task["任务状态"] || user["工单状态"] || '-'}</div>
+                        <div><strong>预计到达:</strong> ${user["预计到达时间"] || task["预计到达时间"] || '-'}</div>
+                        <div><strong>距离:</strong> ${user["距离"] || task["距离"] || '-'}</div>
+                    </div>
+                </div>
+            `;
+            
+            // 创建模态框显示详情
+            const modal = document.createElement('div');
+            modal.className = 'modal-mask show';
+            modal.innerHTML = `
+                <div class="modal-sheet" style="max-width:600px;">
+                    <div class="modal-header">
+                        <h3>工单详情</h3>
+                        <span class="modal-close" onclick="this.parentElement.parentElement.parentElement.remove()">&times;</span>
+                    </div>
+                    <div class="modal-body">${detailHtml}</div>
+                    <div class="modal-footer">
+                        <button class="btn-primary" onclick="this.parentElement.parentElement.parentElement.remove()">关闭</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        function getStatusClass(status) {
+            if (status === '已完成') return 'completed';
+            if (status === '已接单' || status === '处理中') return 'processing';
+            if (status === '待人工派单') return 'pending';
+            return 'canceled';
+        }
+        
+        async function loadReports() {
+            const [ordersRes, engineersRes] = await Promise.all([
+                fetch('/api/admin/orders'),
+                fetch('/api/engineers')
+            ]);
+            
+            const ordersData = await ordersRes.json();
+            const engineersData = await engineersRes.json();
+            
+            const orders = ordersData.data || {};
+            const engineers = engineersData.data || {};
+            
+            // 统计计算
+            let totalOrders = Object.keys(orders).length;
+            let completedOrders = 0;
+            let pendingOrders = 0;
+            let faultTypeStats = {};
+            let engineerTaskCount = {};
+            
+            for (const id in orders) {
+                const order = orders[id];
+                const status = order["内部维修工单表"]["工单状态"];
+                const faultType = order["内部维修工单表"]["故障类型"];
+                const engineerId = order["维修工窗口"]["维修工ID"];
+                
+                if (status === '已完成') completedOrders++;
+                if (status === '待人工派单') pendingOrders++;
+                faultTypeStats[faultType] = (faultTypeStats[faultType] || 0) + 1;
+                if (engineerId && engineerId !== '未分配') {
+                    engineerTaskCount[engineerId] = (engineerTaskCount[engineerId] || 0) + 1;
+                }
+            }
+            
+            // 更新统计卡片
+            const completionRate = totalOrders > 0 ? ((completedOrders / totalOrders) * 100).toFixed(1) : 0;
+            document.querySelector('#reports .stat-card:first-child .stat-value').textContent = completionRate + '%';
+            
+            // 计算平均响应时间（分钟）
+            let totalResponseMinutes = 0;
+            let responseCount = 0;
+            for (const id in orders) {
+                const order = orders[id];
+                const reportTime = order["内部维修工单表"]["报修/报警时间"];
+                const dispatchTime = order["内部维修工单表"]["派单时间"];
+                if (reportTime && dispatchTime) {
+                    const report = new Date(reportTime);
+                    const dispatch = new Date(dispatchTime);
+                    if (!isNaN(report.getTime()) && !isNaN(dispatch.getTime())) {
+                        const diffMinutes = Math.round((dispatch - report) / 60000);
+                        if (diffMinutes >= 0) {
+                            totalResponseMinutes += diffMinutes;
+                            responseCount++;
+                        }
+                    }
+                }
+            }
+            const avgResponseTime = responseCount > 0 ? Math.round(totalResponseMinutes / responseCount) : 0;
+            const responseTimeStr = avgResponseTime < 60 ? `${avgResponseTime}分钟` : `${Math.round(avgResponseTime / 60)}小时${avgResponseTime % 60}分钟`;
+            document.querySelector('#reports .stat-card.success .stat-value').textContent = responseTimeStr;
+            
+            // 计算平均设备故障率
+            const deviceCount = Object.keys(devicesData.data || {}).length;
+            const monthlyFaultRate = deviceCount > 0 ? ((totalOrders / deviceCount) / 30 * 30).toFixed(1) : 0;
+            document.querySelector('#reports .stat-card.warning .stat-value').textContent = `${monthlyFaultRate}次/月`;
+            
+            // 计算人均接单量
+            const activeEngineers = Object.keys(engineerTaskCount).length;
+            const avgOrdersPerEngineer = activeEngineers > 0 ? (totalOrders / activeEngineers).toFixed(1) : 0;
+            document.querySelector('#reports .stat-card.info .stat-value').textContent = `${avgOrdersPerEngineer}单/人`;
+            
+            // 更新月度报修统计图表
+            const monthlyStats = {};
+            for (const id in orders) {
+                const order = orders[id];
+                const time = order["内部维修工单表"]["报修/报警时间"] || order["内部维修工单表"]["下单时间"] || '';
+                if (time) {
+                    const month = time.substring(0, 7);
+                    monthlyStats[month] = (monthlyStats[month] || 0) + 1;
+                }
+            }
+            const sortedMonths = Object.keys(monthlyStats).sort().slice(-6);
+            const maxCount = Math.max(...Object.values(monthlyStats), 1);
+            
+            let monthlyChartHTML = '<div class="trend-chart">';
+            sortedMonths.forEach(month => {
+                const count = monthlyStats[month];
+                const height = (count / maxCount) * 100;
+                monthlyChartHTML += `
+                    <div class="trend-bar-wrapper">
+                        <div class="trend-bar" style="height:${height}%" title="${month}: ${count}单">
+                            <span class="trend-value">${count}</span>
+                        </div>
+                        <span class="trend-label">${month.substring(5)}月</span>
+                    </div>
+                `;
+            });
+            monthlyChartHTML += '</div>';
+            
+            const monthlyChart = document.querySelector('#reports .chart-row:first-child .chart-card:first-child .chart-content');
+            if (monthlyChart) {
+                monthlyChart.innerHTML = sortedMonths.length > 0 ? monthlyChartHTML : '<div class="no-data">暂无数据</div>';
+            }
+            
+            // 更新故障类型分布图表
+            const sortedFaultTypes = Object.entries(faultTypeStats).sort((a, b) => b[1] - a[1]);
+            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+            
+            let faultChartHTML = '<div class="distribution-chart">';
+            sortedFaultTypes.forEach(([type, count], idx) => {
+                const percentage = totalOrders > 0 ? ((count / totalOrders) * 100).toFixed(1) : 0;
+                const color = colors[idx % colors.length];
+                faultChartHTML += `
+                    <div class="distribution-item">
+                        <div class="distribution-info">
+                            <span class="distribution-type">${type}</span>
+                            <span class="distribution-count">${count}单 (${percentage}%)</span>
+                        </div>
+                        <div class="distribution-bar-bg">
+                            <div class="distribution-bar" style="width:${percentage}%;background:${color}"></div>
+                        </div>
+                    </div>
+                `;
+            });
+            faultChartHTML += '</div>';
+            
+            const faultChart = document.querySelector('#reports .chart-row:first-child .chart-card:last-child .chart-content');
+            if (faultChart) {
+                faultChart.innerHTML = sortedFaultTypes.length > 0 ? faultChartHTML : '<div class="no-data">暂无数据</div>';
+            }
+            
+            // 更新维修工绩效排名（调用专门的函数）
+            updateEngineerRanking();
+        }
+
+        async function deleteOrder(orderId) {
+            if (!confirm('确定要删除该工单吗？')) return;
+            const res = await fetch(`/api/order/${orderId}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.status === 'success') {
+                loadOrders();
+                loadDashboard();
+            } else {
+                alert('删除失败');
+            }
+        }
+
+        async function deleteEngineer(id) {
+            if (!confirm('确定要删除该维修工吗？')) return;
+            const res = await fetch(`/api/engineer/${id}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.status === 'success') {
+                loadEngineers();
+            } else {
+                alert('删除失败');
+            }
+        }
+
+        async function deleteDevice(id) {
+            if (!confirm('确定要删除该设备吗？')) return;
+            const res = await fetch(`/api/device/${id}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.status === 'success') {
+                loadDevices();
+            } else {
+                alert('删除失败');
+            }
+        }
+
+        // 维修工地图相关函数
+        function initEngineerMap() {
+            if (engineerMap) return;
+            
+            engineerMap = L.map("engineerMap").setView([31.93, 118.81], 13);
+            
+            L.tileLayer("https://webrd01.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}",{
+                maxZoom: 18,
+                minZoom: 3,
+                attribution: '&copy; 高德地图'
+            }).addTo(engineerMap);
+            
+            loadEngineerLocations();
+        }
+
+        function isOffline(updateTime) {
+            if (!updateTime) return true;
+            const last = new Date(updateTime.replace(/-/g, "/"));
+            const now = new Date();
+            const diffSeconds = (now - last) / 1000;
+            return diffSeconds > 30;
+        }
+
+        function getShowStatus(e) {
+            if (isOffline(e["update_time"])) {
+                return "离线";
+            }
+            return e["工作状态"] || e["status"] || "空闲";
+        }
+
+        function getColor(status) {
+            if (status === "空闲") return "#10b981";
+            if (status === "忙碌" || status === "处理中") return "#ef4444";
+            if (status === "休息") return "#f59e0b";
+            return "#6b7280";
+        }
+
+        function createEngineerIcon(status) {
+            const color = getColor(status);
+            return L.divIcon({
+                className: "",
+                html: `
+                    <div style="
+                        width:20px;
+                        height:20px;
+                        background:${color};
+                        border:2px solid white;
+                        border-radius:50%;
+                        box-shadow:0 0 10px ${color};
+                    "></div>
+                `,
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
+        }
+
+        async function loadEngineerLocations() {
+            try {
+                const res = await fetch("/api/engineer/real/list");
+                const data = await res.json();
+
+                if (data.status !== "success") {
+                    document.getElementById("engineerMapInfo").innerText = "暂无维修工数据";
+                    return;
+                }
+
+                const engineers = data.data;
+
+                let onlineCount = 0;
+                let offlineCount = 0;
+                let freeCount = 0;
+                let busyCount = 0;
+                let restCount = 0;
+
+                const bounds = [];
+
+                for (const id in engineers) {
+                    const e = engineers[id];
+
+                    if (e.latitude == null || e.longitude == null) {
+                        continue;
+                    }
+
+                    const showStatus = getShowStatus(e);
+
+                    if (showStatus === "离线") {
+                        offlineCount++;
+                    } else {
+                        onlineCount++;
+                    }
+
+                    if (showStatus === "空闲") freeCount++;
+                    if (showStatus === "忙碌" || showStatus === "处理中") busyCount++;
+                    if (showStatus === "休息") restCount++;
+
+                    const lat = parseFloat(e.latitude);
+                    const lon = parseFloat(e.longitude);
+
+                    if (!isNaN(lat) && !isNaN(lon)) {
+                        bounds.push([lat, lon]);
+
+                        const popup =
+                            "<b>维修工：" + (e["维修工姓名"] || e["name"] || '-') + "</b><br>" +
+                            "维修工ID：" + (e["维修工ID"] || e["engineer_id"] || '-') + "<br>" +
+                            "电话：" + (e["联系电话"] || e["phone"] || '-') + "<br>" +
+                            "状态：" + showStatus + "<br>" +
+                            "技能：" + (e["技能品牌"] || e["skill_brand"] || '-') + " / " + (e["技能型号"] || e["skill_model"] || '-') + "<br>" +
+                            "更新时间：" + (e["update_time"] || '-');
+
+                        if (!engineerMarkers[id]) {
+                            engineerMarkers[id] = L.marker([lat, lon], {
+                                icon: createEngineerIcon(showStatus)
+                            }).addTo(engineerMap);
+                        } else {
+                            engineerMarkers[id].setLatLng([lat, lon]);
+                            engineerMarkers[id].setIcon(createEngineerIcon(showStatus));
+                        }
+
+                        engineerMarkers[id].bindPopup(popup);
+                    }
+                }
+
+                if (isFirstMapLoad && bounds.length > 0) {
+                    if (bounds.length === 1) {
+                        engineerMap.setView(bounds[0], 15);
+                    } else {
+                        engineerMap.fitBounds(bounds, { padding: [30, 30] });
+                    }
+                    isFirstMapLoad = false;
+                }
+
+                document.getElementById("engineerMapInfo").innerText =
+                    "在线：" + onlineCount +
+                    "｜离线：" + offlineCount +
+                    "｜空闲：" + freeCount +
+                    "｜忙碌：" + busyCount +
+                    "｜休息：" + restCount;
+            } catch (error) {
+                console.error('加载维修工位置失败:', error);
+                document.getElementById("engineerMapInfo").innerText = "加载位置数据失败";
+            }
+        }
+
+        // 初始化加载
+        loadDashboard();
+    </script>
+</body>
+</html>

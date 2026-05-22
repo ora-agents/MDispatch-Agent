@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>MDispatch Engineer</title>
+<link rel="stylesheet" href="/static/css/mobile-app.css">
+<style>
+    /* 登录页面样式 */
+    .login-page {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 20px;
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    }
+    
+    .login-card {
+        width: 100%;
+        max-width: 360px;
+        background: white;
+        border-radius: 16px;
+        padding: 32px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+    
+    .login-logo {
+        text-align: center;
+        margin-bottom: 24px;
+    }
+    
+    .login-logo h1 {
+        font-size: 24px;
+        color: #1e293b;
+        margin-bottom: 4px;
+    }
+    
+    .login-logo p {
+        font-size: 14px;
+        color: #64748b;
+    }
+    
+    .login-form {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+    
+    .login-form .form-label {
+        font-size: 14px;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 6px;
+    }
+    
+    .login-form input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 14px;
+        transition: all 0.2s;
+        box-sizing: border-box;
+    }
+    
+    .login-form input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    .login-form button {
+        width: 100%;
+        padding: 14px;
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .login-form button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    }
+    
+    .login-form button:active {
+        transform: translateY(0);
+    }
+    
+    .login-error {
+        color: #ef4444;
+        font-size: 13px;
+        text-align: center;
+        margin-top: 12px;
+        display: none;
+    }
+    
+    .login-error.show {
+        display: block;
+    }
+    
+    .logout-btn {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        padding: 6px 12px;
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+        cursor: pointer;
+    }
+    
+    .logout-btn:hover {
+        background: rgba(239, 68, 68, 0.2);
+    }
+</style>
+</head>
+<body>
+<!-- 登录页面 -->
+<div id="loginPage" class="login-page">
+    <div class="login-card">
+        <div class="login-logo">
+            <h1>👷 维修工端</h1>
+            <p>请登录您的账户</p>
+        </div>
+        <div class="login-form">
+            <div>
+                <label class="form-label">联系电话</label>
+                <input id="loginPhone" type="tel" placeholder="请输入联系电话">
+            </div>
+            <div>
+                <label class="form-label">登录密码</label>
+                <input id="loginPassword" type="password" placeholder="请输入密码">
+            </div>
+            <button onclick="handleLogin()">登录</button>
+        </div>
+        <div id="loginError" class="login-error">登录失败，请检查账号密码</div>
+    </div>
+</div>
+
+<!-- 主应用页面 -->
+<div id="mainApp" style="display:none;">
+    <header class="app-header engineer">
+        <h1 id="hdrTitle"></h1>
+        <p id="hdrSub"></p>
+        <button class="logout-btn" onclick="handleLogout()">退出登录</button>
+    </header>
+
+    <section id="pageOrders" class="page active">
+        <div class="filter-bar" id="filterBar"></div>
+        <div id="orderList"></div>
+    </section>
+
+    <section id="pageMine" class="page">
+        <div class="card">
+            <div class="card-title" id="statsTitle">工单状态概览</div>
+            <div class="stats-grid" id="orderStats"></div>
+        </div>
+
+        <div class="card profile-card" id="profileCard">
+            <div class="card-title">
+                基础信息
+                <button type="button" class="btn btn-sm btn-outline btn-edit-trigger" onclick="startProfileEdit()">修改</button>
+            </div>
+            <div id="profileView" class="profile-view-panel">
+                <div class="empty" style="padding:16px 0">加载中…</div>
+            </div>
+            <div id="profileEdit" class="profile-edit-panel">
+                <label class="form-label">维修工ID</label>
+                <input id="engineerId" placeholder="维修工ID" readonly>
+                <label class="form-label">姓名</label>
+                <input id="name" placeholder="姓名">
+                <label class="form-label">联系电话</label>
+                <input id="phone" placeholder="联系电话">
+                <label class="form-label">登录密码</label>
+                <input id="password" type="password" placeholder="登录密码">
+                <label class="form-label">技能品牌</label>
+                <input id="skillBrand" placeholder="技能品牌">
+                <label class="form-label">技能型号</label>
+                <input id="skillModel" placeholder="技能型号">
+                <label class="form-label">工作状态</label>
+                <select id="workStatus">
+                    <option value="空闲">空闲</option>
+                    <option value="忙碌">忙碌</option>
+                    <option value="休假">休假</option>
+                </select>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-outline" onclick="cancelProfileEdit()">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="registerEngineer()">保存</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" id="gpsCard"></div>
+    </section>
+
+    <nav class="bottom-nav engineer">
+        <button class="nav-item active" data-tab="orders" onclick="switchTab('orders')">
+            <span class="icon">&#128295;</span><span id="navOrders"></span>
+        </button>
+        <button class="nav-item" data-tab="mine" onclick="switchTab('mine')">
+            <span class="icon">&#128100;</span><span id="navMine"></span>
+        </button>
+    </nav>
+
+    <div class="modal-mask" id="detailModal" onclick="closeDetailIfMask(event)">
+        <div class="modal-sheet" onclick="event.stopPropagation()">
+            <span class="modal-close" onclick="closeDetail()">&times;</span>
+            <h3 id="detailTitle"></h3>
+            <div id="detailBody"></div>
+            <div class="action-row" id="detailActions"></div>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="/static/js/engineer_app.js"></script>
+</body>
+</html>

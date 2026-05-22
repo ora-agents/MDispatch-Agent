@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+/>
+
+<title>
+威思瑞数据监控中心
+</title>
+
+<link
+    rel="stylesheet"
+    href="./css/main.css"
+/>
+
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+
+</head>
+
+<body>
+
+<!-- ================= 背景特效 ================= -->
+
+<div class="bg-overlay"></div>
+
+<!-- ================= 顶部 ================= -->
+
+<header class="top-header">
+
+    <div class="header-deco left"></div>
+
+    <div class="header-title">
+        威思瑞数据监控中心
+    </div>
+
+    <div
+        class="header-time"
+        id="currentTime"
+    >
+        --:--:--
+    </div>
+
+    <div class="header-deco right"></div>
+
+</header>
+
+<!-- ================= 主体 ================= -->
+
+<div class="main-layout">
+
+    <!-- ============ 左侧 ============ -->
+
+    <div class="left-column">
+
+        <!-- 实时统计 -->
+        <section class="screen-card stat-card">
+
+            <div class="screen-title">
+                实时统计
+            </div>
+
+            <div class="stat-grid">
+
+                <div class="stat-item">
+
+                    <div class="stat-icon">
+                        📡
+                    </div>
+
+                    <div>
+
+                        <div
+                        class="stat-number"
+                        id="safe_days"
+                    >
+                        -
+                    </div>
+
+                        <div class="stat-label">
+                            安全运行天数
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="stat-item">
+
+                    <div class="stat-icon">
+                        👤
+                    </div>
+
+                    <div>
+
+                        <div
+                            class="stat-number"
+                            id="user_total"
+                        >
+                            -
+                        </div>
+
+                        <div class="stat-label">
+                            用户总数
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="stat-item">
+
+                    <div class="stat-icon">
+                        🔧
+                    </div>
+
+                    <div>
+
+                        <div
+                            class="stat-number"
+                            id="repair_total"
+                        >
+                            -
+                        </div>
+
+                        <div class="stat-label">
+                            维修工总数
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="stat-item">
+
+                    <div class="stat-icon">
+                        🟢
+                    </div>
+
+                    <div>
+
+                        <div
+                            class="stat-number"
+                            id="online_total"
+                        >
+                            -
+                        </div>
+
+                        <div class="stat-label">
+                            在线设备数
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+        <!-- 生产商 -->
+        <section class="screen-card manufacturer-card">
+
+            <div class="screen-title">
+                生产商
+            </div>
+
+            <table class="data-table">
+
+                <thead>
+
+                <tr>
+                    <th>生产商名称</th>
+                    <th>设备数量</th>
+                    <th>维修工数量</th>
+                    <th>在线设备数</th>
+                </tr>
+
+                </thead>
+
+                <tbody id="manufacturerTable">
+
+                <tr>
+                    <td colspan="4" style="color:#888;">加载中...</td>
+                </tr>
+
+                </tbody>
+
+            </table>
+
+        </section>
+
+    </div>
+
+    <!-- ============ 中间 ============ -->
+
+    <div class="center-column">
+
+        <div class="center-total">
+
+            <div
+                class="total-number"
+                id="total_devices"
+            >
+                -
+            </div>
+
+            <div class="total-label">
+                全国设备总数
+            </div>
+
+        </div>
+
+        <!-- 中国地图 -->
+        <div class="map-wrapper">
+            <div class="radar-scan"></div>
+            <div id="chinaMap"></div>
+        </div>
+
+
+        <div class="province-info" id="provinceInfo">
+            当前区域：全国｜设备数量：0｜工单数量：0
+        </div>
+
+        <button class="reset-btn" onclick="resetProvinceView()">
+            全国
+        </button>
+
+    </div>
+
+    <!-- ============ 右侧 ============ -->
+
+    <div class="right-column">
+
+        <!-- 维修工 -->
+        <section class="screen-card">
+
+            <div class="screen-title">
+                维修工
+            </div>
+
+            <div
+                id="rankChart"
+                class="right-chart"
+            ></div>
+
+        </section>
+
+        <!-- 工单 -->
+        <section class="screen-card">
+
+            <div class="screen-title">
+                工单
+            </div>
+
+            <div
+                id="orderChart"
+                class="right-chart"
+            ></div>
+
+        </section>
+
+    </div>
+
+</div>
+
+<script src="./js/dashboard.js"></script>
+
+</body>
+</html>

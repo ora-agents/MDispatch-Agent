@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>维修工实时调度地图</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+
+<style>
+body{margin:0;font-family:Arial,"Microsoft YaHei";}
+#map{width:100%;height:60vh;border-radius:8px;}
+
+.container{
+    max-width:1200px;
+    margin:0 auto;
+    padding:15px;
+}
+
+.header{
+    background:linear-gradient(135deg,#3b82f6,#1d4ed8);
+    color:white;
+    padding:15px 20px;
+    border-radius:8px;
+    margin-bottom:15px;
+}
+
+.header h1{
+    margin:0 0 8px 0;
+    font-size:20px;
+}
+
+.header p{
+    margin:0;
+    font-size:13px;
+    opacity:0.9;
+}
+
+.main-grid{
+    display:grid;
+    grid-template-columns:1fr 320px;
+    gap:15px;
+}
+
+@media(max-width:900px){
+    .main-grid{
+        grid-template-columns:1fr;
+    }
+}
+
+.map-section{
+    background:white;
+    border-radius:8px;
+    padding:15px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.1);
+}
+
+.map-title{
+    font-size:14px;
+    font-weight:600;
+    margin-bottom:10px;
+    color:#1e293b;
+}
+
+.info{
+    background:#f8fafc;
+    padding:10px 14px;
+    border-radius:6px;
+    font-size:13px;
+    margin-bottom:10px;
+    color:#475569;
+}
+
+.legend{
+    display:flex;
+    gap:15px;
+    flex-wrap:wrap;
+    margin-bottom:10px;
+    font-size:12px;
+}
+
+.legend-item{
+    display:flex;
+    align-items:center;
+    gap:5px;
+}
+
+.dot{
+    display:inline-block;
+    width:10px;
+    height:10px;
+    border-radius:50%;
+}
+.green{background:#16a34a;}
+.red{background:#dc2626;}
+.yellow{background:#facc15;}
+.gray{background:#6b7280;}
+
+.side-panel{
+    background:white;
+    border-radius:8px;
+    padding:15px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.1);
+}
+
+.panel-title{
+    font-size:14px;
+    font-weight:600;
+    margin:0 0 12px 0;
+    color:#1e293b;
+    border-bottom:2px solid #e2e8f0;
+    padding-bottom:8px;
+}
+
+.rule-section{
+    margin-bottom:18px;
+}
+
+.rule-section h4{
+    font-size:13px;
+    color:#3b82f6;
+    margin:0 0 8px 0;
+}
+
+.rule-section p{
+    font-size:12px;
+    color:#64748b;
+    margin:0;
+    line-height:1.6;
+}
+
+.rule-tag{
+    display:inline-block;
+    background:#dbeafe;
+    color:#1d4ed8;
+    padding:2px 8px;
+    border-radius:4px;
+    font-size:11px;
+    margin-right:5px;
+    margin-bottom:5px;
+}
+
+.stats-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    margin-top:15px;
+}
+
+.stat-item{
+    background:#f8fafc;
+    padding:10px;
+    border-radius:6px;
+    text-align:center;
+}
+
+.stat-value{
+    font-size:18px;
+    font-weight:700;
+    color:#1e293b;
+}
+
+.stat-label{
+    font-size:11px;
+    color:#64748b;
+    margin-top:4px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>🗺️ 维修工实时调度地图</h1>
+        <p>实时监控维修工位置与状态，支持智能派单匹配</p>
+    </div>
+    
+    <div class="main-grid">
+        <div class="map-section">
+            <div class="map-title">维修工位置分布</div>
+            <div class="info" id="info">正在加载维修工位置...</div>
+            <div class="legend">
+                <div class="legend-item"><span class="dot green"></span>空闲</div>
+                <div class="legend-item"><span class="dot red"></span>忙碌/处理中</div>
+                <div class="legend-item"><span class="dot yellow"></span>休息</div>
+                <div class="legend-item"><span class="dot gray"></span>离线</div>
+            </div>
+            <div id="map"></div>
+        </div>
+        
+        <div class="side-panel">
+            <div class="panel-title">🤖 机器派单匹配规则</div>
+            
+            <div class="rule-section">
+                <h4>🚨 报警工单 - 最近匹配原则</h4>
+                <p>当发生紧急报警（如困人）时，系统自动选择距离最近的空闲维修工，以最快速度到达现场。</p>
+                <div style="margin-top:8px;">
+                    <span class="rule-tag">距离优先</span>
+                    <span class="rule-tag">响应时间</span>
+                </div>
+            </div>
+            
+            <div class="rule-section">
+                <h4>🔧 报修工单 - 技能匹配原则</h4>
+                <p>普通报修根据设备品牌、型号匹配具备相应技能的维修工，确保专业对口。</p>
+                <div style="margin-top:8px;">
+                    <span class="rule-tag">品牌匹配</span>
+                    <span class="rule-tag">型号匹配</span>
+                    <span class="rule-tag">技能认证</span>
+                </div>
+            </div>
+            
+            <div class="panel-title" style="margin-top:20px;">📊 实时统计</div>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value" id="onlineCount">-</div>
+                    <div class="stat-label">在线维修工</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="freeCount">-</div>
+                    <div class="stat-label">空闲</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="busyCount">-</div>
+                    <div class="stat-label">忙碌</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="restCount">-</div>
+                    <div class="stat-label">休息</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+// 使用高德地图瓦片（国内可访问）
+const map = L.map("map").setView([31.93, 118.81], 13);
+
+L.tileLayer("https://webrd01.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}",{
+    maxZoom: 18,
+    minZoom: 3,
+    attribution: '&copy; 高德地图'
+}).addTo(map);
+
+let markers = {};
+let isFirstLoad = true;
+
+function isOffline(updateTime){
+    if(!updateTime){
+        return true;
+    }
+
+    const last = new Date(updateTime.replace(/-/g, "/"));
+    const now = new Date();
+    const diffSeconds = (now - last) / 1000;
+
+    return diffSeconds > 30;
+}
+
+function getShowStatus(e){
+    if(isOffline(e["update_time"])){
+        return "离线";
+    }
+
+    return e["工作状态"];
+}
+
+function getColor(status){
+    if(status === "空闲"){
+        return "#16a34a";
+    }
+    if(status === "忙碌" || status === "处理中"){
+        return "#dc2626";
+    }
+    if(status === "休息"){
+        return "#facc15";
+    }
+    return "#6b7280";
+}
+
+function createIcon(status){
+    const color = getColor(status);
+
+    return L.divIcon({
+        className:"",
+        html:`
+            <div style="
+                width:22px;
+                height:22px;
+                background:${color};
+                border:3px solid white;
+                border-radius:50%;
+                box-shadow:0 0 12px ${color};
+            "></div>
+        `,
+        iconSize:[22,22],
+        iconAnchor:[11,11]
+    });
+}
+
+async function loadEngineers(){
+    const res = await fetch("/api/engineer/real/list");
+    const data = await res.json();
+
+    if(data.status !== "success"){
+        document.getElementById("info").innerText = "暂无维修工数据";
+        return;
+    }
+
+    const engineers = data.data;
+
+    let onlineCount = 0;
+    let offlineCount = 0;
+    let freeCount = 0;
+    let busyCount = 0;
+    let restCount = 0;
+
+    const bounds = [];
+
+    for(const id in engineers){
+        const e = engineers[id];
+
+        if(e.latitude == null || e.longitude == null){
+            continue;
+        }
+
+        const showStatus = getShowStatus(e);
+
+        if(showStatus === "离线"){
+            offlineCount++;
+        }else{
+            onlineCount++;
+        }
+
+        if(showStatus === "空闲"){
+            freeCount++;
+        }
+
+        if(showStatus === "忙碌" || showStatus === "处理中"){
+            busyCount++;
+        }
+
+        if(showStatus === "休息"){
+            restCount++;
+        }
+
+        const lat = e.latitude;
+        const lon = e.longitude;
+
+        bounds.push([lat, lon]);
+
+        const popup =
+            "<b>维修工：" + e["维修工姓名"] + "</b><br>" +
+            "维修工ID：" + e["维修工ID"] + "<br>" +
+            "电话：" + e["联系电话"] + "<br>" +
+            "状态：" + showStatus + "<br>" +
+            "技能：" + e["技能品牌"] + " / " + e["技能型号"] + "<br>" +
+            "更新时间：" + e["update_time"];
+
+        if(!markers[id]){
+            markers[id] = L.marker([lat,lon], {
+                icon:createIcon(showStatus)
+            }).addTo(map);
+        }else{
+            markers[id].setLatLng([lat,lon]);
+            markers[id].setIcon(createIcon(showStatus));
+        }
+
+        markers[id].bindPopup(popup);
+    }
+
+    // 地图视野适应所有维修工位置（仅在首次加载时调整）
+    if(isFirstLoad && bounds.length > 0){
+        if(bounds.length === 1){
+            map.setView(bounds[0], 15);
+        }else{
+            map.fitBounds(bounds, {padding: [50, 50]});
+        }
+        isFirstLoad = false;
+    }
+
+    document.getElementById("info").innerText =
+        "在线：" + onlineCount +
+        "｜离线：" + offlineCount +
+        "｜空闲：" + freeCount +
+        "｜忙碌：" + busyCount +
+        "｜休息：" + restCount;
+    
+    // 更新侧边栏统计
+    document.getElementById("onlineCount").innerText = onlineCount;
+    document.getElementById("freeCount").innerText = freeCount;
+    document.getElementById("busyCount").innerText = busyCount;
+    document.getElementById("restCount").innerText = restCount;
+}
+
+loadEngineers();
+setInterval(loadEngineers, 3000);
+</script>
+
+</body>
+</html>
